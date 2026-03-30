@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum TransactionType {
+  BUY_REQUEST
+  SELL_REQUEST
+  CONTEST_ENTRY
+  CONTEST_PRIZE
+  CONTEST_REFUND
+}
+
+enum TransactionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum MatchStatus {
+  UPCOMING
+  LIVE
+  COMPLETED
+}
+
+enum ContestStatus {
+  OPEN
+  LOCKED
+  COMPLETED
+  CANCELLED
+}
+
+enum PlayerRole {
+  WK
+  BAT
+  AR
+  BOWL
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  username      String   @unique
+  fullName      String?
+  passwordHash  String?
+  role          UserRole @default(USER)
+  tokenBalance  Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  transactions   TokenTransaction[]
+  contests       Contest[]          @relation("ContestCreator")
+  contestEntries ContestEntry[]
+
+  @@map("users")
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@map("otp_codes")
+}
+
+model TokenTransaction {
+  id               String            @id @default(cuid())
+  userId           String
+  type             TransactionType
+  amount           Float
+  status           TransactionStatus @default(PENDING)
+  adminNote        String?
+  buyerName        String?
+  upiTransactionId String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("token_transactions")
+}
+
+model Match {
+  id        String      @id @default(cuid())
+  team1     String
+  team2     String
+  date      DateTime
+  venue     String
+  status    MatchStatus @default(UPCOMING)
+  season    String      @default("IPL 2026")
+  createdAt DateTime    @default(now())
+
+  contests         Contest[]
+  playerMatchStats PlayerMatchStats[]
+
+  @@map("matches")
+}
+
+model Player {
+  id          String     @id @default(cuid())
+  name        String
+  team        String
+  role        PlayerRole
+  creditPrice Float      @default(7.0)
+  imageUrl    String?
+  battingAvg  Float?
+  bowlingAvg  Float?
+  strikeRate  Float?
+  economy     Float?
+  season      String     @default("IPL 2026")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  matchStats PlayerMatchStats[]
+
+  @@unique([name, team, season])
+  @@map("players")
+}
+
+model Contest {
+  id                String        @id @default(cuid())
+  creatorId         String
+  matchId           String
+  name              String
+  entryFee          Float
+  prizePool         Float         @default(0)
+  platformCutPct    Float         @default(0)
+  prizeDistribution Json
+  maxParticipants   Int?
+  inviteCode        String        @unique
+  status            ContestStatus @default(OPEN)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  creator User           @relation("ContestCreator", fields: [creatorId], references: [id])
+  match   Match          @relation(fields: [matchId], references: [id])
+  entries ContestEntry[]
+
+  @@map("contests")
+}
+
+model ContestEntry {
+  id          String   @id @default(cuid())
+  contestId   String
+  userId      String
+  teamName    String   @default("My Team")
+  players     Json
+  totalPoints Float    @default(0)
+  rank        Int?
+  prizeWon    Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  contest Contest @relation(fields: [contestId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@map("contest_entries")
+}
+
+model PlayerMatchStats {
+  id              String  @id @default(cuid())
+  playerId        String
+  matchId         String
+  runs            Int     @default(0)
+  ballsFaced      Int     @default(0)
+  fours           Int     @default(0)
+  sixes           Int     @default(0)
+  wickets         Int     @default(0)
+  oversBowled     Float   @default(0)
+  maidens         Int     @default(0)
+  runsConceded    Int     @default(0)
+  catches         Int     @default(0)
+  stumpings       Int     @default(0)
+  runOutsDirect   Int     @default(0)
+  runOutsIndirect Int     @default(0)
+  lbwBowled       Int     @default(0)
+  didBat          Boolean @default(false)
+  isOut           Boolean @default(false)
+  fantasyPoints   Float   @default(0)
+  createdAt       DateTime @default(now())
+
+  player Player @relation(fields: [playerId], references: [id])
+  match  Match  @relation(fields: [matchId], references: [id])
+
+  @@unique([playerId, matchId])
+  @@map("player_match_stats")
+}
