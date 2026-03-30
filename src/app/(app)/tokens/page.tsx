@@ -22,18 +22,23 @@ export default function TokensPage() {
   const [sellAmount, setSellAmount] = useState(0);
   const [tab, setTab] = useState<"buy" | "sell" | "history">("buy");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [pendingRequest, setPendingRequest] = useState<{ type: "buy" | "sell"; amount: number } | null>(null);
+  const [error, setError] = useState("");
+
+  async function fetchHistory() {
+    const r = await fetch("/api/tokens/history");
+    const data = await r.json();
+    setTransactions(data.transactions || []);
+  }
 
   useEffect(() => {
-    fetch("/api/tokens/history")
-      .then((r) => r.json())
-      .then((data) => setTransactions(data.transactions || []));
+    fetchHistory();
   }, []);
 
   async function handleBuy(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setMessage("");
+    setError("");
 
     const res = await fetch("/api/tokens/request", {
       method: "POST",
@@ -45,20 +50,23 @@ export default function TokensPage() {
     setLoading(false);
 
     if (!res.ok) {
-      setMessage(data.error);
+      setError(data.error);
       return;
     }
 
-    setMessage("Buy request submitted! Admin will approve after payment.");
-    fetch("/api/tokens/history")
-      .then((r) => r.json())
-      .then((data) => setTransactions(data.transactions || []));
+    // Reset form
+    setBuyAmount(100);
+    setBuyerName("");
+    setUpiTxnId("");
+    setPendingRequest({ type: "buy", amount: buyAmount });
+    await fetchHistory();
+    setTab("history");
   }
 
   async function handleSell(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setMessage("");
+    setError("");
 
     const res = await fetch("/api/tokens/withdraw", {
       method: "POST",
@@ -70,15 +78,16 @@ export default function TokensPage() {
     setLoading(false);
 
     if (!res.ok) {
-      setMessage(data.error);
+      setError(data.error);
       return;
     }
 
-    setMessage("Withdrawal request submitted! Admin will process it.");
+    const submitted = sellAmount;
+    setSellAmount(0);
+    setPendingRequest({ type: "sell", amount: submitted });
     refresh();
-    fetch("/api/tokens/history")
-      .then((r) => r.json())
-      .then((data) => setTransactions(data.transactions || []));
+    await fetchHistory();
+    setTab("history");
   }
 
   const typeLabels: Record<string, string> = {
@@ -97,16 +106,46 @@ export default function TokensPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-2">vINR</h1>
+      <h1 className="text-2xl font-bold mb-2">Wallet</h1>
       <div className="bg-primary/20 text-primary text-2xl font-bold rounded-xl p-4 text-center mb-6">
         {user?.tokenBalance.toLocaleString()} vINR
       </div>
+
+      {/* Pending request banner */}
+      {pendingRequest && (
+        <div className="mb-4 rounded-lg bg-primary/10 border border-primary/30 px-4 py-3 flex items-start gap-3">
+          <div className="mt-0.5 w-2 h-2 rounded-full bg-primary animate-pulse flex-shrink-0" />
+          <div>
+            <div className="text-sm font-semibold text-primary">
+              {pendingRequest.type === "buy" ? "Buy" : "Withdrawal"} request pending
+            </div>
+            <div className="text-xs text-muted mt-0.5">
+              {pendingRequest.type === "buy"
+                ? `${pendingRequest.amount} vINR will be credited once admin approves.`
+                : `${pendingRequest.amount} vINR withdrawal is being processed by admin.`}
+              {" "}You can track it in History.
+            </div>
+          </div>
+          <button
+            onClick={() => setPendingRequest(null)}
+            className="ml-auto text-muted hover:text-foreground text-xs flex-shrink-0"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <div className="mb-4 rounded-lg bg-danger/10 border border-danger/30 px-4 py-2 text-sm text-danger">
+          {error}
+        </div>
+      )}
 
       <div className="flex gap-1 bg-card rounded-lg p-1 mb-6">
         {(["buy", "sell", "history"] as const).map((t) => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => { setTab(t); setError(""); }}
             className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
               tab === t ? "bg-primary text-background" : "text-muted hover:text-foreground"
             }`}
@@ -128,6 +167,7 @@ export default function TokensPage() {
               type="number"
               value={buyAmount}
               onChange={(e) => setBuyAmount(Number(e.target.value))}
+              onFocus={(e) => e.target.select()}
               min={1}
               className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
               required
@@ -195,6 +235,7 @@ export default function TokensPage() {
             type="number"
             value={sellAmount}
             onChange={(e) => setSellAmount(Number(e.target.value))}
+            onFocus={(e) => e.target.select()}
             min={1}
             max={user?.tokenBalance}
             className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:border-primary"
@@ -221,13 +262,27 @@ export default function TokensPage() {
                 className="bg-card rounded-lg p-3 border border-border flex items-center justify-between"
               >
                 <div>
-                  <span className="text-sm font-medium">{typeLabels[tx.type]}</span>
-                  <span className={`text-xs ml-2 ${statusColors[tx.status]}`}>
-                    {tx.status}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{typeLabels[tx.type] ?? tx.type}</span>
+                    <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
+                      tx.status === "PENDING"
+                        ? "bg-primary/15 text-primary"
+                        : tx.status === "APPROVED"
+                        ? "bg-success/15 text-success"
+                        : "bg-danger/15 text-danger"
+                    }`}>
+                      {tx.status}
+                    </span>
+                    {tx.status === "PENDING" && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                    )}
+                  </div>
                   {tx.adminNote && (
                     <div className="text-xs text-muted mt-0.5">{tx.adminNote}</div>
                   )}
+                  <div className="text-xs text-muted mt-0.5">
+                    {new Date(tx.createdAt).toLocaleDateString()}
+                  </div>
                 </div>
                 <div className="text-right">
                   <div
@@ -240,18 +295,11 @@ export default function TokensPage() {
                     {tx.type === "SELL_REQUEST" || tx.type === "CONTEST_ENTRY" ? "-" : "+"}
                     {tx.amount}
                   </div>
-                  <div className="text-xs text-muted">
-                    {new Date(tx.createdAt).toLocaleDateString()}
-                  </div>
                 </div>
               </div>
             ))
           )}
         </div>
-      )}
-
-      {message && (
-        <p className="text-sm mt-4 text-center text-primary">{message}</p>
       )}
     </div>
   );

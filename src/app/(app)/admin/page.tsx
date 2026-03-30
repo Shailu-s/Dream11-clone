@@ -100,6 +100,7 @@ export default function AdminPage() {
   const [submittingId, setSubmittingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<AdminTab>("tokens");
   const [matchFilter, setMatchFilter] = useState<"ALL" | "UPCOMING" | "LIVE" | "COMPLETED">("UPCOMING");
+  const [showFinalizeModal, setShowFinalizeModal] = useState(false);
 
   async function fetchAdminData() {
     const [usersRes, txRes, matchesRes] = await Promise.all([
@@ -322,9 +323,12 @@ export default function AdminPage() {
 
   async function handleFinalizeScoring() {
     if (!selectedMatchId) return;
+    setShowFinalizeModal(true);
+  }
 
-    if (!confirm("Finalize scoring? This will distribute prizes and cannot be undone.")) return;
-
+  async function confirmFinalizeScoring() {
+    if (!selectedMatchId) return;
+    setShowFinalizeModal(false);
     setSubmittingId(`finalize-${selectedMatchId}`);
     setMessage("");
 
@@ -593,6 +597,7 @@ export default function AdminPage() {
                               value={stat[field]}
                               min={0}
                               onChange={(e) => updateNumberStat(player.id, field, e.target.value)}
+                              onFocus={(e) => e.target.select()}
                               className="w-16 rounded border border-border bg-background px-2 py-1"
                             />
                           </td>
@@ -606,6 +611,7 @@ export default function AdminPage() {
                             onChange={(e) =>
                               updateNumberStat(player.id, "oversBowled", e.target.value)
                             }
+                            onFocus={(e) => e.target.select()}
                             className="w-20 rounded border border-border bg-background px-2 py-1"
                           />
                         </td>
@@ -616,6 +622,7 @@ export default function AdminPage() {
                               value={stat[field]}
                               min={0}
                               onChange={(e) => updateNumberStat(player.id, field, e.target.value)}
+                              onFocus={(e) => e.target.select()}
                               className="w-16 rounded border border-border bg-background px-2 py-1"
                             />
                           </td>
@@ -751,6 +758,50 @@ export default function AdminPage() {
             </table>
           </div>
         </section>
+      )}
+
+      {/* Finalize Scoring Modal */}
+      {showFinalizeModal && selectedMatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full shadow-xl space-y-4">
+            <div className="text-center">
+              <div className="text-4xl mb-3">🏆</div>
+              <h2 className="text-lg font-bold">Finalize Scoring</h2>
+              <p className="text-sm text-muted mt-1">
+                {selectedMatch.team1} vs {selectedMatch.team2}
+              </p>
+            </div>
+
+            <div className="bg-danger/10 border border-danger/20 rounded-lg px-4 py-3 text-sm text-danger space-y-1">
+              <div className="font-semibold">This cannot be undone.</div>
+              <ul className="text-xs space-y-0.5 mt-1 list-disc list-inside text-danger/80">
+                <li>Fantasy points will be calculated for all entries</li>
+                <li>Contest leaderboard will be ranked</li>
+                <li>Prize tokens will be credited to winners</li>
+                <li>Contest will be marked as Completed</li>
+              </ul>
+            </div>
+
+            <p className="text-xs text-muted text-center">
+              Make sure all player stats are saved before finalizing.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowFinalizeModal(false)}
+                className="flex-1 rounded-lg border border-border py-2.5 text-sm font-semibold hover:bg-card-hover transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmFinalizeScoring}
+                className="flex-1 rounded-lg bg-primary text-background py-2.5 text-sm font-semibold hover:bg-primary-hover transition-colors"
+              >
+                Yes, Finalize
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

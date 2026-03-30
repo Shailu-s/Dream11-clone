@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status");
+  const matchId = searchParams.get("matchId");
 
   // Auto-update match statuses: mark matches COMPLETED 4+ hours after start time
   const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
@@ -12,7 +13,10 @@ export async function GET(req: Request) {
     data: { status: "COMPLETED" },
   });
 
-  const where = status ? { status: status as "UPCOMING" | "LIVE" | "COMPLETED" } : {};
+  const where = {
+    ...(status ? { status: status as "UPCOMING" | "LIVE" | "COMPLETED" } : {}),
+    ...(matchId ? { id: matchId } : {}),
+  };
 
   const matches = await prisma.match.findMany({
     where,

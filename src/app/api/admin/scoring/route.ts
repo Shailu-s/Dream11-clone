@@ -46,7 +46,34 @@ export async function POST(req: Request) {
       });
     }
 
-    return NextResponse.json({ message: "Stats saved" });
+    // After saving stats, recalculate and update points for all contest entries in this match
+    const allStats = await prisma.playerMatchStats.findMany({ where: { matchId } });
+    const statsMap = new Map<string, number>();
+    for (const s of allStats) {
+      statsMap.set(s.playerId, s.fantasyPoints);
+    }
+
+    const contests = await prisma.contest.findMany({
+      where: { matchId, status: { in: ["OPEN", "LOCKED"] } },
+      include: { entries: true },
+    });
+
+    for (const contest of contests) {
+      for (const entry of contest.entries) {
+        const playerSelections = entry.players as Array<{
+          playerId: string;
+          isCaptain: boolean;
+          isViceCaptain: boolean;
+        }>;
+        const totalPoints = calculateEntryPoints(playerSelections, statsMap);
+        await prisma.contestEntry.update({
+          where: { id: entry.id },
+          data: { totalPoints },
+        });
+      }
+    }
+
+    return NextResponse.json({ message: "Stats saved and points updated" });
   } catch {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

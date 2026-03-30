@@ -22,10 +22,9 @@ export default function Navbar({ username, tokenBalance, isAdmin }: NavbarProps)
 
   const navItems = [
     { href: "/dashboard", label: "Home" },
-    { href: "/contests/create", label: "Create" },
-    { href: "/contests/join", label: "Join" },
+    { href: "/contests", label: "Contests" },
     { href: "/leaderboard", label: "Board" },
-    { href: "/tokens", label: "vINR" },
+    { href: "/tokens", label: "Wallet" },
     { href: "/profile", label: "Profile" },
   ];
 

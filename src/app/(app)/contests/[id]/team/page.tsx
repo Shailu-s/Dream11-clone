@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+
+const SAVED_TEAMS_KEY = "stars11_saved_teams";
 
 interface Player {
   id: string;
@@ -23,6 +25,9 @@ const ROLE_MAX: Record<string, number> = { WK: 4, BAT: 6, AR: 4, BOWL: 6 };
 export default function TeamSelectionPage() {
   const { id } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const savedTeamId = searchParams.get("savedTeamId");
+  const editEntryId = searchParams.get("editEntryId");
   const [contest, setContest] = useState<{
     match: { team1: string; team2: string; id: string };
     entryFee: number;
@@ -30,7 +35,7 @@ export default function TeamSelectionPage() {
   } | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [selections, setSelections] = useState<Selection[]>([]);
-  const [teamName, setTeamName] = useState("My Team");
+  const [teamName, setTeamName] = useState("");
   const [step, setStep] = useState<"select" | "captain">("select");
   const [filterRole, setFilterRole] = useState<string>("ALL");
   const [filterTeam, setFilterTeam] = useState<string>("ALL");
@@ -42,30 +47,65 @@ export default function TeamSelectionPage() {
   const draftKey = `draft_team_${id}`;
 
   useEffect(() => {
-    fetch(`/api/contests/${id}`)
-      .then((r) => r.json())
-      .then((contestData) => {
-        setContest(contestData.contest);
-        fetch(`/api/players?matchId=${contestData.contest.match.id}`)
-          .then((r) => r.json())
-          .then((data) => {
-            setPlayers(data.players || []);
+    async function load() {
+      const contestRes = await fetch(`/api/contests/${id}`);
+      const contestData = await contestRes.json();
+      setContest(contestData.contest);
 
-            // Restore draft from localStorage
-            try {
-              const saved = localStorage.getItem(draftKey);
-              if (saved) {
-                const { selections: savedSelections, teamName: savedName } = JSON.parse(saved);
-                setSelections(savedSelections || []);
-                if (savedName) setTeamName(savedName);
-              }
-            } catch {
-              // ignore parse errors
-            }
+      const playersRes = await fetch(`/api/players?matchId=${contestData.contest.match.id}`);
+      const playersData = await playersRes.json();
+      setPlayers(playersData.players || []);
 
+      // If editing an existing contest entry, load it
+      if (editEntryId) {
+        try {
+          const entryRes = await fetch(`/api/contests/${id}/entry/${editEntryId}`);
+          const entryData = await entryRes.json();
+          if (entryData.entry) {
+            setSelections(entryData.entry.players as Array<{ playerId: string; isCaptain: boolean; isViceCaptain: boolean }>);
+            setTeamName(entryData.entry.teamName || "");
             setLoading(false);
-          });
-      });
+            return;
+          }
+        } catch {
+          // fall through to draft
+        }
+      }
+
+      // If coming from a saved team, load it
+      if (savedTeamId) {
+        try {
+          const raw = localStorage.getItem(SAVED_TEAMS_KEY);
+          if (raw) {
+            const allTeams = JSON.parse(raw);
+            const found = allTeams.find((t: { id: string }) => t.id === savedTeamId);
+            if (found) {
+              setSelections(found.players || []);
+              setTeamName(found.teamName || "");
+              setLoading(false);
+              return;
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      // Otherwise restore draft from localStorage
+      try {
+        const saved = localStorage.getItem(draftKey);
+        if (saved) {
+          const { selections: savedSelections, teamName: savedName } = JSON.parse(saved);
+          setSelections(savedSelections || []);
+          if (savedName) setTeamName(savedName);
+        }
+      } catch {
+        // ignore
+      }
+
+      setLoading(false);
+    }
+    void load();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -153,7 +193,7 @@ export default function TeamSelectionPage() {
   function clearDraft() {
     try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
     setSelections([]);
-    setTeamName("My Team");
+    setTeamName("");
     setSelectionError("");
   }
 
@@ -170,8 +210,13 @@ export default function TeamSelectionPage() {
       return;
     }
 
-    const res = await fetch(`/api/contests/${id}/enter`, {
-      method: "POST",
+    const url = editEntryId
+      ? `/api/contests/${id}/entry/${editEntryId}`
+      : `/api/contests/${id}/enter`;
+    const method = editEntryId ? "PUT" : "POST";
+
+    const res = await fetch(url, {
+      method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ players: selections, teamName }),
     });
@@ -204,7 +249,7 @@ export default function TeamSelectionPage() {
     const count = roleCounts[role];
     if (count < ROLE_MIN[role]) roleErrors.push(`Need ${ROLE_MIN[role]}+ ${role}`);
   }
-  const canProceed = selections.length === 11 && roleErrors.length === 0;
+  const canProceed = selections.length === 11 && roleErrors.length === 0 && teamName.trim().length > 0;
 
   if (step === "captain") {
     return (
@@ -279,7 +324,12 @@ export default function TeamSelectionPage() {
             disabled={submitting}
             className="flex-1 bg-primary text-background font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
           >
-            {submitting ? "Submitting..." : `Submit (${contest.entryFee} vINR)`}
+            {submitting
+              ? (editEntryId ? "Updating..." : "Submitting...")
+              : editEntryId
+              ? "Update Team"
+              : `Submit (${contest.entryFee} vINR)`
+            }
           </button>
         </div>
       </div>
@@ -309,7 +359,7 @@ export default function TeamSelectionPage() {
           type="text"
           value={teamName}
           onChange={(e) => setTeamName(e.target.value)}
-          placeholder="Team name (e.g. Dream XI)"
+          placeholder="Team name * (e.g. Dream XI)"
           className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
           maxLength={30}
         />
@@ -457,9 +507,11 @@ export default function TeamSelectionPage() {
           className="w-full bg-primary text-background font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
         >
           {selections.length === 11
-            ? canProceed
-              ? "Next: Choose Captain"
-              : roleErrors.join(", ")
+            ? roleErrors.length > 0
+              ? roleErrors.join(", ")
+              : !teamName.trim()
+              ? "Enter a team name above"
+              : "Next: Choose Captain"
             : `Select ${11 - selections.length} more player${11 - selections.length !== 1 ? "s" : ""}`}
         </button>
       </div>

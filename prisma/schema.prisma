@@ -59,6 +59,7 @@ model User {
   transactions   TokenTransaction[]
   contests       Contest[]          @relation("ContestCreator")
   contestEntries ContestEntry[]
+  savedTeams     SavedTeam[]
 
   @@map("users")
 }
@@ -104,6 +105,7 @@ model Match {
 
   contests         Contest[]
   playerMatchStats PlayerMatchStats[]
+  savedTeams       SavedTeam[]
 
   @@map("matches")
 }
@@ -167,6 +169,21 @@ model ContestEntry {
   user    User    @relation(fields: [userId], references: [id])
 
   @@map("contest_entries")
+}
+
+model SavedTeam {
+  id        String   @id @default(cuid())
+  userId    String
+  matchId   String
+  teamName  String
+  players   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id])
+  match Match @relation(fields: [matchId], references: [id])
+
+  @@map("saved_teams")
 }
 
 model PlayerMatchStats {

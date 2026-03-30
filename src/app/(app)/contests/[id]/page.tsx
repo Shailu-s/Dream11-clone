@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { formatDate } from "@/lib/utils";
 
 interface Contest {
@@ -37,6 +38,9 @@ export default function ContestDetailPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
+  const [joinLoading, setJoinLoading] = useState(false);
+  const [joinError, setJoinError] = useState("");
 
   useEffect(() => {
     fetch(`/api/contests/${id}`)
@@ -55,6 +59,24 @@ export default function ContestDetailPage() {
     navigator.clipboard.writeText(contest.inviteCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleJoinByCode(e: React.FormEvent) {
+    e.preventDefault();
+    setJoinLoading(true);
+    setJoinError("");
+    const res = await fetch("/api/contests/join", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ inviteCode: joinCode }),
+    });
+    const data = await res.json();
+    setJoinLoading(false);
+    if (!res.ok) {
+      setJoinError(data.error);
+      return;
+    }
+    router.push(`/contests/${data.contest.id}`);
   }
 
   function shareContest() {
@@ -102,9 +124,16 @@ export default function ContestDetailPage() {
           {contest.match.team1} <span className="text-muted">vs</span>{" "}
           {contest.match.team2}
         </div>
-        <div className="text-sm text-muted mb-4">
+        <div className="text-sm text-muted mb-3">
           {formatDate(new Date(contest.match.date))} &middot; {contest.match.venue}
         </div>
+
+        {contest.match.status === "LIVE" && (
+          <div className="flex items-center gap-2 bg-danger/10 border border-danger/20 rounded-lg px-3 py-2 mb-4 text-sm text-danger font-semibold">
+            <span className="w-2 h-2 rounded-full bg-danger animate-pulse flex-shrink-0" />
+            Match is ongoing — scores updating
+          </div>
+        )}
 
         <div className="grid grid-cols-3 gap-3 text-center mb-4">
           <div className="bg-background rounded-lg p-3">
@@ -215,6 +244,38 @@ export default function ContestDetailPage() {
         );
       })()}
 
+      {/* Join a different contest by code */}
+      {!isParticipant && contest.status === "OPEN" && (
+        <div className="mb-4">
+          <details className="group">
+            <summary className="cursor-pointer text-sm text-muted hover:text-foreground select-none list-none flex items-center gap-1">
+              <span className="text-xs">▶</span>
+              <span className="group-open:hidden">Have a different invite code?</span>
+              <span className="hidden group-open:inline">Have a different invite code?</span>
+            </summary>
+            <form onSubmit={handleJoinByCode} className="mt-3 flex gap-2">
+              <input
+                type="text"
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                placeholder="ABCD12"
+                maxLength={6}
+                className="flex-1 bg-card border border-border rounded-lg px-3 py-2 text-sm font-mono tracking-widest text-center focus:outline-none focus:border-primary"
+                required
+              />
+              <button
+                type="submit"
+                disabled={joinLoading || joinCode.length < 6}
+                className="bg-primary text-background text-sm font-semibold rounded-lg px-4 py-2 hover:bg-primary-hover disabled:opacity-50 transition-colors"
+              >
+                {joinLoading ? "..." : "Join"}
+              </button>
+            </form>
+            {joinError && <p className="text-danger text-xs mt-2">{joinError}</p>}
+          </details>
+        </div>
+      )}
+
       {contest.entries.length === 0 ? (
         <div className="text-muted bg-card rounded-xl p-6 text-center">
           No entries yet. Share the invite code with friends!
@@ -222,9 +283,10 @@ export default function ContestDetailPage() {
       ) : (
         <div className="space-y-2">
           {contest.entries.map((entry, i) => (
-            <div
+            <Link
               key={entry.id}
-              className={`bg-card rounded-lg p-3 border border-border flex items-center justify-between ${
+              href={`/contests/${id}/entry/${entry.id}`}
+              className={`bg-card rounded-lg p-3 border border-border flex items-center justify-between hover:bg-card-hover transition-colors ${
                 entry.userId === userId ? "border-primary/50" : ""
               }`}
             >
@@ -262,7 +324,7 @@ export default function ContestDetailPage() {
                   </div>
                 )}
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

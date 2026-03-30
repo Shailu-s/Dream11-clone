@@ -141,6 +141,7 @@ export default function CreateContestPage() {
             type="number"
             value={entryFee}
             onChange={(e) => setEntryFee(Number(e.target.value))}
+            onFocus={(e) => e.target.select()}
             min={0}
             className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
             required
@@ -205,6 +206,7 @@ export default function CreateContestPage() {
                     updated[i] = { ...pd, percentage: Number(e.target.value) };
                     setPrizeDistribution(updated);
                   }}
+                  onFocus={(e) => e.target.select()}
                   min={1}
                   max={100}
                   className="w-20 bg-background border border-border rounded px-2 py-1 text-sm"
