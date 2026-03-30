@@ -41,7 +41,7 @@ export default function ProfilePage() {
     <div>
       <div className="bg-card rounded-xl p-6 border border-border mb-6">
         <h1 className="text-2xl font-bold mb-1">@{user?.username}</h1>
-        <p className="text-muted text-sm mb-4">{user?.phone}</p>
+        <p className="text-muted text-sm mb-4">{user?.email}</p>
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-background rounded-lg p-3 text-center">
             <div className="text-xs text-muted">Balance</div>

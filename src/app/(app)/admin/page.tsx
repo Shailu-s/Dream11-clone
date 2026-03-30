@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAuth } from "@/components/AuthProvider";
 
 interface UserRow {
   id: string;
@@ -86,6 +87,7 @@ const EMPTY_STAT = {
 type AdminTab = "tokens" | "scoring" | "matches" | "users";
 
 export default function AdminPage() {
+  const { user: authUser, loading: authLoading } = useAuth();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [transactions, setTransactions] = useState<TransactionRow[]>([]);
   const [matches, setMatches] = useState<MatchRow[]>([]);
@@ -364,6 +366,18 @@ export default function AdminPage() {
     { key: "matches", label: "Matches" },
     { key: "users", label: "Users", count: users.length },
   ];
+
+  if (authLoading) return null;
+
+  if (!authUser || authUser.role !== "ADMIN") {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+        <div className="text-6xl mb-4">🚫</div>
+        <h1 className="text-2xl font-bold text-danger mb-2">Bro, Don&apos;t Fuck Around</h1>
+        <p className="text-muted">This area is admin only. You don&apos;t belong here.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
