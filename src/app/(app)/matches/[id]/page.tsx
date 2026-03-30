@@ -179,30 +179,29 @@ export default function MatchDetailPage() {
 
       {/* Action buttons — only for upcoming matches */}
       {isUpcoming && (
-        <div className="grid grid-cols-1 gap-3">
-          <button
-            onClick={() => router.push(`/matches/${matchId}/team`)}
-            className="bg-primary text-background font-semibold rounded-xl py-3 hover:bg-primary-hover transition-colors text-left px-4"
-          >
-            <div className="font-bold">Create Team</div>
-            <div className="text-xs opacity-70 mt-0.5">Build & save a team for this match</div>
-          </button>
-          <button
-            onClick={() => router.push(`/contests/create?matchId=${matchId}`)}
-            className="bg-card border border-border font-semibold rounded-xl py-3 hover:bg-card-hover transition-colors text-left px-4"
-          >
-            <div className="font-bold">Create Contest</div>
-            <div className="text-xs text-muted mt-0.5">Start a new contest and invite friends</div>
-          </button>
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => router.push(`/matches/${matchId}/team`)}
+              className="bg-primary text-background font-semibold rounded-lg py-2.5 px-3 text-sm hover:bg-primary-hover transition-colors"
+            >
+              + Create Team
+            </button>
+            <button
+              onClick={() => router.push(`/contests/create?matchId=${matchId}`)}
+              className="bg-card border border-border font-semibold rounded-lg py-2.5 px-3 text-sm hover:bg-card-hover transition-colors"
+            >
+              + Create Contest
+            </button>
+          </div>
           <button
             onClick={() => setShowJoinInput(!showJoinInput)}
-            className="bg-card border border-border font-semibold rounded-xl py-3 hover:bg-card-hover transition-colors text-left px-4"
+            className="w-full bg-card border border-border font-semibold rounded-lg py-2.5 px-3 text-sm hover:bg-card-hover transition-colors text-muted"
           >
-            <div className="font-bold">Join Contest by Code</div>
-            <div className="text-xs text-muted mt-0.5">Have an invite code? Enter it here</div>
+            Join by Code
           </button>
           {showJoinInput && (
-            <form onSubmit={handleJoinByCode} className="flex gap-2 px-1">
+            <form onSubmit={handleJoinByCode} className="flex gap-2">
               <input
                 type="text"
                 value={joinCode}
@@ -222,7 +221,7 @@ export default function MatchDetailPage() {
               </button>
             </form>
           )}
-          {joinError && <p className="text-danger text-sm px-1">{joinError}</p>}
+          {joinError && <p className="text-danger text-sm">{joinError}</p>}
         </div>
       )}
 
@@ -232,46 +231,18 @@ export default function MatchDetailPage() {
           <h2 className="text-lg font-semibold mb-3">Your Saved Teams</h2>
           <div className="space-y-2">
             {savedTeams.map((team) => (
-              <div key={team.id} className="bg-card border border-border rounded-xl p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <div className="font-semibold">{team.teamName}</div>
-                    <div className="text-xs text-muted mt-0.5">
-                      {team.players.length} players &middot; saved {new Date(team.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    {isUpcoming && (
-                      <button
-                        onClick={() => router.push(`/matches/${matchId}/team?editTeamId=${team.id}`)}
-                        className="text-xs text-primary hover:underline"
-                      >
-                        Edit
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleDeleteTeam(team.id)}
-                      className="text-xs text-muted hover:text-danger transition-colors"
-                    >
-                      Delete
-                    </button>
+              <div
+                key={team.id}
+                onClick={() => router.push(`/teams/${team.id}`)}
+                className="bg-card border border-border rounded-xl p-4 flex items-center justify-between cursor-pointer hover:bg-card-hover transition-colors"
+              >
+                <div>
+                  <div className="font-semibold">{team.teamName}</div>
+                  <div className="text-xs text-muted mt-0.5">
+                    {team.players.length} players &middot; saved {new Date(team.createdAt).toLocaleDateString()}
                   </div>
                 </div>
-                {contests.filter((c) => !c.isJoined).length > 0 && isUpcoming && (
-                  <div className="space-y-2">
-                    <div className="text-xs text-muted mb-1">Join a contest with this team:</div>
-                    {contests.filter((c) => !c.isJoined).map((contest) => (
-                      <button
-                        key={contest.id}
-                        onClick={() => router.push(`/contests/${contest.id}/team?savedTeamId=${team.id}`)}
-                        className="w-full text-left bg-background border border-border rounded-lg px-3 py-2 text-sm hover:border-primary/50 transition-colors"
-                      >
-                        <span className="font-medium">{contest.name}</span>
-                        <span className="text-muted ml-2">{contest.entryFee} vINR entry</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <div className="text-xs text-primary font-semibold">View &rarr;</div>
               </div>
             ))}
           </div>
@@ -286,7 +257,8 @@ export default function MatchDetailPage() {
             {contests.map((contest) => (
               <div
                 key={contest.id}
-                className={`bg-card border rounded-xl p-4 ${
+                onClick={() => router.push(`/contests/${contest.id}`)}
+                className={`bg-card border rounded-xl p-4 cursor-pointer hover:bg-card-hover transition-colors ${
                   contest.isJoined ? "border-primary/40" : "border-border"
                 }`}
               >
@@ -307,23 +279,7 @@ export default function MatchDetailPage() {
                     </span>
                   )}
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-primary">{contest.entryFee} vINR</span>
-                  <button
-                    onClick={() =>
-                      contest.isJoined
-                        ? router.push(`/contests/${contest.id}`)
-                        : router.push(`/contests/${contest.id}/team`)
-                    }
-                    className={`text-sm font-semibold rounded-lg px-4 py-1.5 transition-colors ${
-                      contest.isJoined
-                        ? "bg-card-hover border border-border hover:bg-card text-foreground"
-                        : "bg-primary text-background hover:bg-primary-hover"
-                    }`}
-                  >
-                    {contest.isJoined ? "View" : "Join"}
-                  </button>
-                </div>
+                <span className="text-sm font-bold text-primary">{contest.entryFee} vINR entry</span>
               </div>
             ))}
           </div>

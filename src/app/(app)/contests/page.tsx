@@ -157,7 +157,8 @@ export default function ContestsPage() {
             openContests.map((contest) => (
               <div
                 key={contest.id}
-                className={`bg-card border rounded-xl p-4 ${contest.isJoined ? "border-primary/40" : "border-border"}`}
+                onClick={() => router.push(`/contests/${contest.id}`)}
+                className={`bg-card border rounded-xl p-4 cursor-pointer hover:bg-card-hover transition-colors ${contest.isJoined ? "border-primary/40" : "border-border"}`}
               >
                 <div className="flex items-start justify-between mb-1">
                   <div>
@@ -169,29 +170,17 @@ export default function ContestsPage() {
                       by @{contest.creator.username} &middot; {contest._count.entries} joined
                     </div>
                   </div>
-                  {contest.isJoined && (
+                  {contest.isJoined ? (
                     <span className="text-xs font-semibold bg-primary/15 text-primary px-2 py-0.5 rounded-full flex-shrink-0">
                       Joined
                     </span>
+                  ) : (
+                    <span className="text-xs font-semibold bg-success/15 text-success px-2 py-0.5 rounded-full flex-shrink-0">
+                      Open
+                    </span>
                   )}
                 </div>
-                <div className="flex items-center justify-between mt-3">
-                  <span className="text-sm font-bold text-primary">{contest.entryFee} vINR entry</span>
-                  <button
-                    onClick={() =>
-                      contest.isJoined
-                        ? router.push(`/contests/${contest.id}`)
-                        : router.push(`/contests/${contest.id}/team`)
-                    }
-                    className={`text-sm font-semibold rounded-lg px-4 py-1.5 transition-colors ${
-                      contest.isJoined
-                        ? "bg-card-hover border border-border hover:bg-card"
-                        : "bg-primary text-background hover:bg-primary-hover"
-                    }`}
-                  >
-                    {contest.isJoined ? "View" : "Join"}
-                  </button>
-                </div>
+                <span className="text-sm font-bold text-primary mt-2 block">{contest.entryFee} vINR entry</span>
               </div>
             ))
           )}

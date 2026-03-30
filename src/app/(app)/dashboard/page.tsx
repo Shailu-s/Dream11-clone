@@ -262,7 +262,7 @@ function TeamCard({ team }: { team: SavedTeam }) {
 
   return (
     <Link
-      href={`/matches/${team.match.id}`}
+      href={`/teams/${team.id}`}
       className="block bg-card rounded-xl p-4 hover:bg-card-hover transition-colors border border-border"
     >
       <div className="flex items-center justify-between">
