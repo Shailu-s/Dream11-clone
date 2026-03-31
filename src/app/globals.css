@@ -102,17 +102,8 @@ html.dark [class*="rounded"] {
 body {
   background-color: var(--background);
   color: var(--foreground);
-  /* Subtle premium crosshatch + dot pattern */
-  background-image:
-    radial-gradient(circle, var(--primary) 0.5px, transparent 0.5px),
-    linear-gradient(45deg, var(--border) 1px, transparent 1px),
-    linear-gradient(-45deg, var(--border) 1px, transparent 1px);
-  background-size:
-    32px 32px,
-    24px 24px,
-    24px 24px;
-  background-position:
-    0 0,
-    0 0,
-    0 0;
+  /* Repeating cricket motif — bats, balls, stumps scattered across background */
+  background-image: url("/cricket-pattern.svg");
+  background-repeat: repeat;
+  background-size: 800px 800px;
 }
