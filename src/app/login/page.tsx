@@ -224,7 +224,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="text-5xl font-black tracking-tighter text-primary mb-1">WGF</div>
-          <p className="text-xs text-muted uppercase tracking-widest">Who Gets Fucked?</p>
+          <p className="text-xs text-muted uppercase tracking-widest">Wickets · Glory · Fantasy</p>
         </div>
 
         <div className="bg-card rounded-xl p-6 shadow-lg">

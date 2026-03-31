@@ -27,6 +27,7 @@ export default function Navbar({ username, tokenBalance, isAdmin }: NavbarProps)
     { href: "/contests", label: "Contests" },
     { href: "/leaderboard", label: "Board" },
     { href: "/profile", label: "Profile" },
+    { href: "/docs", label: "How it works" },
     ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
   ];
 
@@ -36,7 +37,7 @@ export default function Navbar({ username, tokenBalance, isAdmin }: NavbarProps)
         <div className="flex items-center justify-between h-14">
           <Link href="/dashboard" className="flex items-baseline gap-1.5">
             <span className="text-xl font-black text-primary tracking-tight">WGF</span>
-            <span className="text-[10px] font-medium text-primary/70 tracking-wide hidden sm:inline">who gets fucked</span>
+            <span className="text-[10px] font-medium text-primary/70 tracking-wide hidden sm:inline">Who Gets Fucked?</span>
           </Link>
 
           <div className="hidden md:flex items-center gap-1">

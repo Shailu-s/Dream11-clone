@@ -87,7 +87,7 @@ export default function ContestsPage() {
       <div className="flex items-center justify-between px-1">
         <div>
           <h1 className="text-2xl font-black tracking-tight">WGF</h1>
-          <p className="text-xs text-muted font-medium">who gets fucked</p>
+          <p className="text-xs text-muted font-medium">Wickets · Glory · Fantasy</p>
         </div>
         <button
           onClick={() => setShowJoinInput(!showJoinInput)}

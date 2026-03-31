@@ -129,7 +129,7 @@ export default function EntryDetailPage() {
                 <div className="font-bold text-success">+{entry.prizeWon.toFixed(0)} vINR</div>
               </div>
             )}
-            {matchStarted && entry.contest.status !== "COMPLETED" && (
+            {entry.contest.match.status === "LIVE" && entry.contest.status !== "COMPLETED" && (
               <div className="ml-auto flex items-center gap-1 text-xs text-danger">
                 <span className="w-1.5 h-1.5 rounded-full bg-danger animate-pulse" />
                 Updating

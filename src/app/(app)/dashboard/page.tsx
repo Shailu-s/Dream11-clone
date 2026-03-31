@@ -85,30 +85,22 @@ export default function DashboardPage() {
   const activeEntries = myEntries.filter(
     (e) => e.contest.status === "OPEN" || e.contest.status === "LOCKED"
   );
+  const pastEntries = myEntries.filter(
+    (e) => e.contest.status === "COMPLETED" || e.contest.status === "CANCELLED"
+  );
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-20">
       <div className="bg-primary/10 border-2 border-primary/20 rounded-3xl p-6 relative overflow-hidden">
         <div className="relative z-10">
           <h1 className="text-2xl font-black tracking-tight">
-            Let&apos;s start <span className="text-primary">Fourplay</span>
+            Pick Your <span className="text-primary">XI</span>, Make Your <span className="text-primary">Move</span>
           </h1>
           <div className="flex items-center gap-2 mt-2">
             <span className="text-primary text-xl font-black">₹{user?.tokenBalance.toLocaleString()}</span>
             <span className="text-[10px] font-black text-muted uppercase tracking-widest bg-white/50 px-2 py-0.5 rounded-full">Available Balance</span>
           </div>
         </div>
-        {/* Bat hitting ball — decorative background */}
-        <svg className="absolute -right-6 -bottom-6 opacity-10" width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
-          {/* Ball */}
-          <circle cx="38" cy="38" r="28" fill="#c8702a" stroke="#a85b1f" strokeWidth="2"/>
-          <path d="M18 28 Q38 48 58 28" stroke="white" strokeWidth="2" fill="none"/>
-          <path d="M18 48 Q38 28 58 48" stroke="white" strokeWidth="2" fill="none"/>
-          {/* Bat blade */}
-          <rect x="58" y="42" width="36" height="90" rx="8" fill="#c8702a" transform="rotate(-40 58 42)"/>
-          {/* Bat handle */}
-          <rect x="112" y="28" width="10" height="52" rx="4" fill="#a85b1f" transform="rotate(-40 112 28)"/>
-        </svg>
       </div>
 
       <div className="flex gap-1 bg-card/50 backdrop-blur-sm rounded-xl p-1 border border-border sticky top-4 z-10">
@@ -237,6 +229,20 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+
+          {pastEntries.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-4 px-1">
+                <h2 className="text-xs font-black text-muted uppercase tracking-[0.2em]">Past Contests</h2>
+                <div className="h-[1px] flex-1 bg-border mx-4" />
+              </div>
+              <div className="space-y-3 opacity-75">
+                {pastEntries.map((entry) => (
+                  <EntryCard key={entry.id} entry={entry} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ) : activeTab === "my-teams" ? (
         <div className="space-y-4">
@@ -337,7 +343,16 @@ function TeamCard({ team }: { team: SavedTeam }) {
           </div>
         </div>
         <div className="text-right">
-          <div className="text-[10px] font-black text-primary uppercase tracking-wider">Edit Strategy &rarr;</div>
+          {team.match.status === "UPCOMING" ? (
+            <div className="text-[10px] font-black text-primary uppercase tracking-wider">Edit Strategy &rarr;</div>
+          ) : team.match.status === "LIVE" ? (
+            <div className="text-[10px] font-black text-danger uppercase tracking-wider flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-danger animate-pulse" />
+              Live
+            </div>
+          ) : (
+            <div className="text-[10px] font-black text-muted uppercase tracking-wider">Finished</div>
+          )}
         </div>
       </div>
     </Link>

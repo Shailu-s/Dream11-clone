@@ -38,13 +38,13 @@ export default async function HomePage() {
             WGF
           </div>
           <div className="text-sm sm:text-base uppercase tracking-[0.3em] text-muted mt-2 font-medium">
-            Who Gets Fucked?
+            Wickets. Glory. Fantasy.
           </div>
         </div>
 
         {/* Tagline */}
         <p className="text-2xl sm:text-3xl font-bold mb-3 max-w-lg">
-          A fantasy cricket game.
+          Your squad. Your call. Your bragging rights.
         </p>
         <div className="flex flex-col sm:flex-row gap-3">
           <Link
@@ -63,7 +63,7 @@ export default async function HomePage() {
       </main>
 
       <footer className="relative z-10 text-center text-xs text-muted py-6 border-t border-border mt-16">
-        WGF · Fantasy cricket for degenerates · IPL 2026
+        WGF · Where friendships come to die · IPL 2026
       </footer>
     </div>
   );
