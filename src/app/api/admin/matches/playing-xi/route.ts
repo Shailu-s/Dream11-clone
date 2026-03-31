@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     // Set isInPlayingXI = false for all players in this match first
     // Or just update the ones provided. Let's do a transaction for reliability.
     
-    await prisma.$transaction(
+    await Promise.all(
       playingXIs.map((item: { playerId: string; isInPlayingXI: boolean }) =>
         prisma.playerMatchStats.upsert({
           where: {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { validatePlayerSelections } from "@/lib/player-utils";
+import { calculateEntryPoints } from "@/lib/scoring";
 
 export async function POST(
   req: Request,
@@ -67,6 +68,16 @@ export async function POST(
     const userId = user.id;
     const entryFee = contest.entryFee;
 
+    // Check if stats already exist for this match — calculate points immediately
+    const existingStats = await prisma.playerMatchStats.findMany({
+      where: { matchId },
+      select: { playerId: true, fantasyPoints: true },
+    });
+    const statsMap = new Map(existingStats.map((s) => [s.playerId, s.fantasyPoints]));
+    const initialPoints = existingStats.length > 0
+      ? calculateEntryPoints(players, statsMap)
+      : 0;
+
     await prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: userId },
@@ -76,7 +87,7 @@ export async function POST(
         data: { userId, type: "CONTEST_ENTRY", amount: entryFee, status: "APPROVED" },
       });
       await tx.contestEntry.create({
-        data: { contestId: id, userId, teamName: trimmedName, players },
+        data: { contestId: id, userId, teamName: trimmedName, players, totalPoints: initialPoints },
       });
       await tx.contest.update({
         where: { id },
