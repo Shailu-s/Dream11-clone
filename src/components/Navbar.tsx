@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTheme } from "@/components/ThemeProvider";
 
 interface NavbarProps {
   username: string;
@@ -14,6 +15,7 @@ export default function Navbar({ username, tokenBalance, isAdmin }: NavbarProps)
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { theme, toggle } = useTheme();
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -67,6 +69,13 @@ export default function Navbar({ username, tokenBalance, isAdmin }: NavbarProps)
               @{username}
             </Link>
             <button
+              onClick={toggle}
+              className="hidden md:flex items-center justify-center w-8 h-8 rounded-lg border border-border text-muted hover:text-foreground hover:border-primary/40 transition-colors"
+              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {theme === "dark" ? "☀️" : "🌙"}
+            </button>
+            <button
               onClick={handleLogout}
               className="hidden md:flex items-center gap-1 text-xs text-muted hover:text-danger border border-border hover:border-danger/50 rounded-lg px-2.5 py-1.5 transition-colors"
             >
@@ -115,7 +124,13 @@ export default function Navbar({ username, tokenBalance, isAdmin }: NavbarProps)
                 {item.label}
               </Link>
             ))}
-            <div className="border-t border-border mt-2 pt-2">
+            <div className="border-t border-border mt-2 pt-2 space-y-1">
+              <button
+                onClick={toggle}
+                className="block w-full text-left px-3 py-2 rounded-lg text-sm text-muted hover:text-foreground transition-colors"
+              >
+                {theme === "dark" ? "☀️  Light mode" : "🌙  Dark mode"}
+              </button>
               <button
                 onClick={handleLogout}
                 className="block w-full text-left px-3 py-2 rounded-lg text-sm text-danger hover:bg-danger/10 transition-colors"

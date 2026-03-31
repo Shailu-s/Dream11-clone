@@ -16,6 +16,73 @@
   --border: #e5e2dc;
 }
 
+html.dark {
+  --background: #0b0f1a;
+  --foreground: #e8e6e1;
+  --card: #111827;
+  --card-hover: #1a2236;
+  --primary: #c8702a;
+  --primary-hover: #e07830;
+  --secondary: #3b82f6;
+  --success: #22c55e;
+  --danger: #ef4444;
+  --muted: #6b7280;
+  --border: #1e2d45;
+}
+
+/* Dark mode overrides — Tailwind v4 compiles utility classes to fixed values,
+   so we override the rendered element styles directly via CSS */
+html.dark body {
+  background-color: #0b0f1a;
+  color: #e8e6e1;
+}
+
+html.dark [class*="bg-card"] {
+  background-color: #111827 !important;
+}
+
+html.dark [class*="bg-background"] {
+  background-color: #0b0f1a !important;
+}
+
+html.dark [class*="text-foreground"] {
+  color: #e8e6e1 !important;
+}
+
+html.dark [class*="text-muted"] {
+  color: #6b7280 !important;
+}
+
+html.dark [class*="border-border"] {
+  border-color: #1e2d45 !important;
+}
+
+html.dark nav {
+  background-color: #111827;
+  border-color: #1e2d45;
+}
+
+html.dark [class*="bg-white"] {
+  background-color: #111827 !important;
+}
+
+html.dark [class*="bg-primary/10"],
+html.dark [class*="bg-primary/20"] {
+  background-color: rgba(200, 112, 42, 0.15) !important;
+}
+
+html.dark input,
+html.dark select,
+html.dark textarea {
+  background-color: #1a2236;
+  color: #e8e6e1;
+  border-color: #1e2d45;
+}
+
+html.dark [class*="rounded"] {
+  border-color: #1e2d45;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
