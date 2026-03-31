@@ -336,7 +336,14 @@ export default function MatchTeamBuilderPage() {
               }`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="font-medium text-sm">{player.name}</div>
+                  <div className="flex items-center gap-2">
+                    <div className="font-medium text-sm">{player.name}</div>
+                    {player.isInPlayingXI && (
+                      <span className="bg-success/20 text-success text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest border border-success/30">
+                        Playing
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-muted">{player.team} · {player.role}</div>
                 </div>
                 <div className="flex items-center gap-2">
