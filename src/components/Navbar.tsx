@@ -24,20 +24,17 @@ export default function Navbar({ username, tokenBalance, isAdmin }: NavbarProps)
     { href: "/dashboard", label: "Home" },
     { href: "/contests", label: "Contests" },
     { href: "/leaderboard", label: "Board" },
-    { href: "/tokens", label: "Wallet" },
     { href: "/profile", label: "Profile" },
+    ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
   ];
-
-  if (isAdmin) {
-    navItems.push({ href: "/admin", label: "Admin" });
-  }
 
   return (
     <nav className="bg-card border-b border-border sticky top-0 z-50">
       <div className="max-w-5xl mx-auto px-4">
         <div className="flex items-center justify-between h-14">
-          <Link href="/dashboard" className="text-xl font-bold text-primary">
-            WGF
+          <Link href="/dashboard" className="flex items-baseline gap-1.5">
+            <span className="text-xl font-black text-primary tracking-tight">WGF</span>
+            <span className="text-[10px] font-medium text-primary/70 tracking-wide hidden sm:inline">who gets fucked</span>
           </Link>
 
           <div className="hidden md:flex items-center gap-1">
@@ -56,14 +53,22 @@ export default function Navbar({ username, tokenBalance, isAdmin }: NavbarProps)
             ))}
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="bg-primary/20 text-primary text-sm font-semibold px-3 py-1 rounded-full">
+          <div className="flex items-center gap-2">
+            <Link
+              href="/profile"
+              className="bg-primary/20 text-primary text-sm font-semibold px-3 py-1 rounded-full hover:bg-primary/30 transition-colors"
+            >
               ₹{tokenBalance.toLocaleString()} vINR
-            </div>
-            <span className="text-sm text-muted hidden sm:block">@{username}</span>
+            </Link>
+            <Link
+              href="/profile"
+              className="text-sm text-muted hover:text-foreground transition-colors hidden sm:block font-medium"
+            >
+              @{username}
+            </Link>
             <button
               onClick={handleLogout}
-              className="text-sm text-muted hover:text-danger transition-colors hidden md:block"
+              className="hidden md:flex items-center gap-1 text-xs text-muted hover:text-danger border border-border hover:border-danger/50 rounded-lg px-2.5 py-1.5 transition-colors"
             >
               Logout
             </button>
@@ -90,6 +95,12 @@ export default function Navbar({ username, tokenBalance, isAdmin }: NavbarProps)
 
         {menuOpen && (
           <div className="md:hidden pb-3 space-y-1">
+            <div className="px-3 py-2 border-b border-border mb-2 flex items-center justify-between">
+              <span className="text-sm font-semibold">@{username}</span>
+              <span className="text-xs text-primary font-semibold bg-primary/15 px-2 py-0.5 rounded-full">
+                ₹{tokenBalance.toLocaleString()} vINR
+              </span>
+            </div>
             {navItems.map((item) => (
               <Link
                 key={item.href}
@@ -104,12 +115,14 @@ export default function Navbar({ username, tokenBalance, isAdmin }: NavbarProps)
                 {item.label}
               </Link>
             ))}
-            <button
-              onClick={handleLogout}
-              className="block w-full text-left px-3 py-2 rounded-lg text-sm text-danger"
-            >
-              Logout
-            </button>
+            <div className="border-t border-border mt-2 pt-2">
+              <button
+                onClick={handleLogout}
+                className="block w-full text-left px-3 py-2 rounded-lg text-sm text-danger hover:bg-danger/10 transition-colors"
+              >
+                Logout
+              </button>
+            </div>
           </div>
         )}
       </div>

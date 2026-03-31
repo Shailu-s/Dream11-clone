@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession, requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { validateTeam } from "@/lib/team-validation";
+import { validatePlayerSelections, resolvePlayerDetails } from "@/lib/player-utils";
 
 export async function GET(
   req: Request,
@@ -26,6 +26,31 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  const isOwner = user?.id === entry.userId;
+  const matchStarted =
+    entry.contest.match.status !== "UPCOMING" || entry.contest.match.date <= new Date();
+
+  // Don't reveal team composition to other users before match starts
+  if (!isOwner && !matchStarted) {
+    return NextResponse.json({
+      entry: {
+        id: entry.id,
+        teamName: entry.teamName,
+        totalPoints: entry.totalPoints,
+        rank: entry.rank,
+        prizeWon: entry.prizeWon,
+        userId: entry.userId,
+        contestId: entry.contestId,
+        user: entry.user,
+        contest: entry.contest,
+        players: [],
+        team: [],
+      },
+      isOwner: false,
+      teamHidden: true,
+    });
+  }
+
   // Resolve player details from the players JSON
   const playerSelections = entry.players as Array<{
     playerId: string;
@@ -33,22 +58,11 @@ export async function GET(
     isViceCaptain: boolean;
   }>;
 
-  const playerIds = playerSelections.map((p) => p.playerId);
-  const players = await prisma.player.findMany({
-    where: { id: { in: playerIds } },
-    select: { id: true, name: true, team: true, role: true, creditPrice: true },
-  });
-
-  const playerMap = new Map(players.map((p) => [p.id, p]));
-
-  const team = playerSelections.map((sel) => ({
-    ...sel,
-    player: playerMap.get(sel.playerId) ?? null,
-  }));
+  const team = await resolvePlayerDetails(playerSelections, entry.contest.match.id);
 
   return NextResponse.json({
     entry: { ...entry, team },
-    isOwner: user?.id === entry.userId,
+    isOwner,
   });
 }
 
@@ -84,19 +98,28 @@ export async function PUT(
       return NextResponse.json({ error: "Match has already started" }, { status: 400 });
     }
 
+    // If team name is changing, check for duplicate within this contest for this user
+    const newTeamName = teamName?.trim() || entry.teamName;
+    if (newTeamName !== entry.teamName) {
+      const dupe = await prisma.contestEntry.findFirst({
+        where: { contestId, userId: user.id, teamName: newTeamName, id: { not: entryId } },
+      });
+      if (dupe) {
+        return NextResponse.json({ error: "You already have a team with this name in this contest." }, { status: 400 });
+      }
+    }
+
     // Validate team
-    const playerIds = players.map((p: { playerId: string }) => p.playerId);
-    const playerData = await prisma.player.findMany({ where: { id: { in: playerIds } } });
-    const validation = validateTeam(players, playerData);
-    if (!validation.valid) {
-      return NextResponse.json({ error: validation.errors.join(", ") }, { status: 400 });
+    const result = await validatePlayerSelections(players);
+    if (!result.valid) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
     await prisma.contestEntry.update({
       where: { id: entryId },
       data: {
         players,
-        teamName: teamName?.trim() || entry.teamName,
+        teamName: newTeamName,
       },
     });
 

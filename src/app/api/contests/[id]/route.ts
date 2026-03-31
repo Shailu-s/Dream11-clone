@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { syncMatchStatuses } from "@/lib/match-sync";
 
 export async function GET(
   req: Request,
@@ -8,6 +9,8 @@ export async function GET(
 ) {
   const { id } = await params;
   const user = await getSession();
+
+  await syncMatchStatuses();
 
   const contest = await prisma.contest.findUnique({
     where: { id },

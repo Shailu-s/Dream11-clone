@@ -1,19 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --font-geist-sans: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-geist-sans: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-geist-mono: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
-  --background: #0f172a;
-  --foreground: #f1f5f9;
-  --card: #1e293b;
-  --card-hover: #334155;
-  --primary: #f59e0b;
-  --primary-hover: #d97706;
-  --secondary: #3b82f6;
-  --success: #22c55e;
-  --danger: #ef4444;
-  --muted: #64748b;
-  --border: #334155;
+  --background: #f5f3ef;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-hover: #f9f8f6;
+  --primary: #c8702a;
+  --primary-hover: #a85b1f;
+  --secondary: #2563eb;
+  --success: #16a34a;
+  --danger: #dc2626;
+  --muted: #8c8a85;
+  --border: #e5e2dc;
 }
 
 @theme inline {
@@ -35,4 +35,8 @@
 body {
   background: var(--background);
   color: var(--foreground);
+  /* Repeating cricket motif — bats, balls, stumps scattered across background */
+  background-image: url("/cricket-pattern.svg");
+  background-repeat: repeat;
+  background-size: 800px 800px;
 }

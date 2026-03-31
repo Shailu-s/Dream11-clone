@@ -1,0 +1,214 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800" fill="none">
+
+  <!--
+    Each scene is drawn fully inline at its position (no <use> to avoid rotation origin bugs).
+    Scene: stumps in back, bat angled ~40deg as if mid-swing, small ball near the blade face.
+    Ball radius = 7, bat blade = 14x50px. Bat is clearly bigger than ball.
+  -->
+
+  <!-- ===== SCENE MACRO (copy-pasted 12x, each with its own translate+rotate) ===== -->
+  <!-- Scene at 80,80 rotated -10deg -->
+  <g transform="translate(80 80) rotate(-10)" opacity="0.08">
+    <rect x="0"  y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="10" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="20" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="-2" y="0" width="28" height="4" rx="2" fill="#e0c898"/>
+    <rect x="-2" y="9" width="28" height="4" rx="2" fill="#e0c898"/>
+    <g transform="translate(34 -8) rotate(40)">
+      <rect x="-3" y="0" width="6" height="22" rx="2" fill="#7a4f2a"/>
+      <rect x="-7" y="22" width="14" height="42" rx="5" fill="#c8702a"/>
+      <rect x="-1" y="25" width="2" height="34" rx="1" fill="#a85b1f" opacity="0.5"/>
+    </g>
+    <circle cx="-2" cy="22" r="7" fill="#cc3333" stroke="#881111" stroke-width="1"/>
+    <path d="M-8 18 Q-2 25 4 18" stroke="white" stroke-width="0.8" fill="none"/>
+    <path d="M-8 26 Q-2 19 4 26" stroke="white" stroke-width="0.8" fill="none"/>
+  </g>
+
+  <!-- Scene at 330,55 rotated 8deg -->
+  <g transform="translate(330 55) rotate(8)" opacity="0.075">
+    <rect x="0"  y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="10" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="20" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="-2" y="0" width="28" height="4" rx="2" fill="#e0c898"/>
+    <rect x="-2" y="9" width="28" height="4" rx="2" fill="#e0c898"/>
+    <g transform="translate(34 -8) rotate(40)">
+      <rect x="-3" y="0" width="6" height="22" rx="2" fill="#7a4f2a"/>
+      <rect x="-7" y="22" width="14" height="42" rx="5" fill="#c8702a"/>
+      <rect x="-1" y="25" width="2" height="34" rx="1" fill="#a85b1f" opacity="0.5"/>
+    </g>
+    <circle cx="-2" cy="22" r="7" fill="#cc3333" stroke="#881111" stroke-width="1"/>
+    <path d="M-8 18 Q-2 25 4 18" stroke="white" stroke-width="0.8" fill="none"/>
+    <path d="M-8 26 Q-2 19 4 26" stroke="white" stroke-width="0.8" fill="none"/>
+  </g>
+
+  <!-- Scene at 600,90 rotated -15deg -->
+  <g transform="translate(600 90) rotate(-15)" opacity="0.08">
+    <rect x="0"  y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="10" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="20" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="-2" y="0" width="28" height="4" rx="2" fill="#e0c898"/>
+    <rect x="-2" y="9" width="28" height="4" rx="2" fill="#e0c898"/>
+    <g transform="translate(34 -8) rotate(40)">
+      <rect x="-3" y="0" width="6" height="22" rx="2" fill="#7a4f2a"/>
+      <rect x="-7" y="22" width="14" height="42" rx="5" fill="#c8702a"/>
+      <rect x="-1" y="25" width="2" height="34" rx="1" fill="#a85b1f" opacity="0.5"/>
+    </g>
+    <circle cx="-2" cy="22" r="7" fill="#cc3333" stroke="#881111" stroke-width="1"/>
+    <path d="M-8 18 Q-2 25 4 18" stroke="white" stroke-width="0.8" fill="none"/>
+    <path d="M-8 26 Q-2 19 4 26" stroke="white" stroke-width="0.8" fill="none"/>
+  </g>
+
+  <!-- Scene at 190,250 rotated 12deg -->
+  <g transform="translate(190 250) rotate(12)" opacity="0.075">
+    <rect x="0"  y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="10" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="20" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="-2" y="0" width="28" height="4" rx="2" fill="#e0c898"/>
+    <rect x="-2" y="9" width="28" height="4" rx="2" fill="#e0c898"/>
+    <g transform="translate(34 -8) rotate(40)">
+      <rect x="-3" y="0" width="6" height="22" rx="2" fill="#7a4f2a"/>
+      <rect x="-7" y="22" width="14" height="42" rx="5" fill="#c8702a"/>
+      <rect x="-1" y="25" width="2" height="34" rx="1" fill="#a85b1f" opacity="0.5"/>
+    </g>
+    <circle cx="-2" cy="22" r="7" fill="#cc3333" stroke="#881111" stroke-width="1"/>
+    <path d="M-8 18 Q-2 25 4 18" stroke="white" stroke-width="0.8" fill="none"/>
+    <path d="M-8 26 Q-2 19 4 26" stroke="white" stroke-width="0.8" fill="none"/>
+  </g>
+
+  <!-- Scene at 460,220 rotated -8deg -->
+  <g transform="translate(460 220) rotate(-8)" opacity="0.08">
+    <rect x="0"  y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="10" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="20" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="-2" y="0" width="28" height="4" rx="2" fill="#e0c898"/>
+    <rect x="-2" y="9" width="28" height="4" rx="2" fill="#e0c898"/>
+    <g transform="translate(34 -8) rotate(40)">
+      <rect x="-3" y="0" width="6" height="22" rx="2" fill="#7a4f2a"/>
+      <rect x="-7" y="22" width="14" height="42" rx="5" fill="#c8702a"/>
+      <rect x="-1" y="25" width="2" height="34" rx="1" fill="#a85b1f" opacity="0.5"/>
+    </g>
+    <circle cx="-2" cy="22" r="7" fill="#cc3333" stroke="#881111" stroke-width="1"/>
+    <path d="M-8 18 Q-2 25 4 18" stroke="white" stroke-width="0.8" fill="none"/>
+    <path d="M-8 26 Q-2 19 4 26" stroke="white" stroke-width="0.8" fill="none"/>
+  </g>
+
+  <!-- Scene at 710,260 rotated 5deg -->
+  <g transform="translate(710 260) rotate(5)" opacity="0.075">
+    <rect x="0"  y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="10" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="20" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="-2" y="0" width="28" height="4" rx="2" fill="#e0c898"/>
+    <rect x="-2" y="9" width="28" height="4" rx="2" fill="#e0c898"/>
+    <g transform="translate(34 -8) rotate(40)">
+      <rect x="-3" y="0" width="6" height="22" rx="2" fill="#7a4f2a"/>
+      <rect x="-7" y="22" width="14" height="42" rx="5" fill="#c8702a"/>
+      <rect x="-1" y="25" width="2" height="34" rx="1" fill="#a85b1f" opacity="0.5"/>
+    </g>
+    <circle cx="-2" cy="22" r="7" fill="#cc3333" stroke="#881111" stroke-width="1"/>
+    <path d="M-8 18 Q-2 25 4 18" stroke="white" stroke-width="0.8" fill="none"/>
+    <path d="M-8 26 Q-2 19 4 26" stroke="white" stroke-width="0.8" fill="none"/>
+  </g>
+
+  <!-- Scene at 70,440 rotated 6deg -->
+  <g transform="translate(70 440) rotate(6)" opacity="0.08">
+    <rect x="0"  y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="10" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="20" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="-2" y="0" width="28" height="4" rx="2" fill="#e0c898"/>
+    <rect x="-2" y="9" width="28" height="4" rx="2" fill="#e0c898"/>
+    <g transform="translate(34 -8) rotate(40)">
+      <rect x="-3" y="0" width="6" height="22" rx="2" fill="#7a4f2a"/>
+      <rect x="-7" y="22" width="14" height="42" rx="5" fill="#c8702a"/>
+      <rect x="-1" y="25" width="2" height="34" rx="1" fill="#a85b1f" opacity="0.5"/>
+    </g>
+    <circle cx="-2" cy="22" r="7" fill="#cc3333" stroke="#881111" stroke-width="1"/>
+    <path d="M-8 18 Q-2 25 4 18" stroke="white" stroke-width="0.8" fill="none"/>
+    <path d="M-8 26 Q-2 19 4 26" stroke="white" stroke-width="0.8" fill="none"/>
+  </g>
+
+  <!-- Scene at 320,420 rotated -12deg -->
+  <g transform="translate(320 420) rotate(-12)" opacity="0.075">
+    <rect x="0"  y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="10" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="20" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="-2" y="0" width="28" height="4" rx="2" fill="#e0c898"/>
+    <rect x="-2" y="9" width="28" height="4" rx="2" fill="#e0c898"/>
+    <g transform="translate(34 -8) rotate(40)">
+      <rect x="-3" y="0" width="6" height="22" rx="2" fill="#7a4f2a"/>
+      <rect x="-7" y="22" width="14" height="42" rx="5" fill="#c8702a"/>
+      <rect x="-1" y="25" width="2" height="34" rx="1" fill="#a85b1f" opacity="0.5"/>
+    </g>
+    <circle cx="-2" cy="22" r="7" fill="#cc3333" stroke="#881111" stroke-width="1"/>
+    <path d="M-8 18 Q-2 25 4 18" stroke="white" stroke-width="0.8" fill="none"/>
+    <path d="M-8 26 Q-2 19 4 26" stroke="white" stroke-width="0.8" fill="none"/>
+  </g>
+
+  <!-- Scene at 580,460 rotated 10deg -->
+  <g transform="translate(580 460) rotate(10)" opacity="0.08">
+    <rect x="0"  y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="10" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="20" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="-2" y="0" width="28" height="4" rx="2" fill="#e0c898"/>
+    <rect x="-2" y="9" width="28" height="4" rx="2" fill="#e0c898"/>
+    <g transform="translate(34 -8) rotate(40)">
+      <rect x="-3" y="0" width="6" height="22" rx="2" fill="#7a4f2a"/>
+      <rect x="-7" y="22" width="14" height="42" rx="5" fill="#c8702a"/>
+      <rect x="-1" y="25" width="2" height="34" rx="1" fill="#a85b1f" opacity="0.5"/>
+    </g>
+    <circle cx="-2" cy="22" r="7" fill="#cc3333" stroke="#881111" stroke-width="1"/>
+    <path d="M-8 18 Q-2 25 4 18" stroke="white" stroke-width="0.8" fill="none"/>
+    <path d="M-8 26 Q-2 19 4 26" stroke="white" stroke-width="0.8" fill="none"/>
+  </g>
+
+  <!-- Scene at 180,620 rotated -6deg -->
+  <g transform="translate(180 620) rotate(-6)" opacity="0.075">
+    <rect x="0"  y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="10" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="20" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="-2" y="0" width="28" height="4" rx="2" fill="#e0c898"/>
+    <rect x="-2" y="9" width="28" height="4" rx="2" fill="#e0c898"/>
+    <g transform="translate(34 -8) rotate(40)">
+      <rect x="-3" y="0" width="6" height="22" rx="2" fill="#7a4f2a"/>
+      <rect x="-7" y="22" width="14" height="42" rx="5" fill="#c8702a"/>
+      <rect x="-1" y="25" width="2" height="34" rx="1" fill="#a85b1f" opacity="0.5"/>
+    </g>
+    <circle cx="-2" cy="22" r="7" fill="#cc3333" stroke="#881111" stroke-width="1"/>
+    <path d="M-8 18 Q-2 25 4 18" stroke="white" stroke-width="0.8" fill="none"/>
+    <path d="M-8 26 Q-2 19 4 26" stroke="white" stroke-width="0.8" fill="none"/>
+  </g>
+
+  <!-- Scene at 440,610 rotated 14deg -->
+  <g transform="translate(440 610) rotate(14)" opacity="0.08">
+    <rect x="0"  y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="10" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="20" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="-2" y="0" width="28" height="4" rx="2" fill="#e0c898"/>
+    <rect x="-2" y="9" width="28" height="4" rx="2" fill="#e0c898"/>
+    <g transform="translate(34 -8) rotate(40)">
+      <rect x="-3" y="0" width="6" height="22" rx="2" fill="#7a4f2a"/>
+      <rect x="-7" y="22" width="14" height="42" rx="5" fill="#c8702a"/>
+      <rect x="-1" y="25" width="2" height="34" rx="1" fill="#a85b1f" opacity="0.5"/>
+    </g>
+    <circle cx="-2" cy="22" r="7" fill="#cc3333" stroke="#881111" stroke-width="1"/>
+    <path d="M-8 18 Q-2 25 4 18" stroke="white" stroke-width="0.8" fill="none"/>
+    <path d="M-8 26 Q-2 19 4 26" stroke="white" stroke-width="0.8" fill="none"/>
+  </g>
+
+  <!-- Scene at 690,640 rotated -9deg -->
+  <g transform="translate(690 640) rotate(-9)" opacity="0.075">
+    <rect x="0"  y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="10" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="20" y="0" width="4" height="38" rx="2" fill="#cead80"/>
+    <rect x="-2" y="0" width="28" height="4" rx="2" fill="#e0c898"/>
+    <rect x="-2" y="9" width="28" height="4" rx="2" fill="#e0c898"/>
+    <g transform="translate(34 -8) rotate(40)">
+      <rect x="-3" y="0" width="6" height="22" rx="2" fill="#7a4f2a"/>
+      <rect x="-7" y="22" width="14" height="42" rx="5" fill="#c8702a"/>
+      <rect x="-1" y="25" width="2" height="34" rx="1" fill="#a85b1f" opacity="0.5"/>
+    </g>
+    <circle cx="-2" cy="22" r="7" fill="#cc3333" stroke="#881111" stroke-width="1"/>
+    <path d="M-8 18 Q-2 25 4 18" stroke="white" stroke-width="0.8" fill="none"/>
+    <path d="M-8 26 Q-2 19 4 26" stroke="white" stroke-width="0.8" fill="none"/>
+  </g>
+
+</svg>

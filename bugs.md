@@ -1,73 +1,86 @@
-0. testing thison staging, via UI, i created the contest from admin, i joined with two teams as amdin, then logged in on another acocutn with srajawat024 gmail, created two teams and joined contexst. Now see bugs issues and features i found out: 
+## Bug Tracker — Stars11 / WGF
 
-1. team naming is not good, i just created two teams wiht same name, it si not noask me toenter name. WGF
-Home
-Create
-Join
-Board
-vINR
-Profile
-Admin
-₹52 vINR
-@mourinho
-Logout
-ghhgghh
-by @mourinho
+All bugs from initial staging test. Status as of 2026-03-31.
 
-OPEN
-KKR vs SRH
-2 Apr 2026, 07:30 pm · Eden Gardens, Kolkata
-Entry Fee
-20 vINR
-Prize Pool
-40 vINR
-Players
-2
-CHREEC
-Copy
-Share
-Prize Distribution
-#1: 50%(20T)
-#2: 30%(12T)
-#3: 20%(8T)
-Add Another Team
-Participants
-1
-My Team(You)
-@mourinho
-0.0 pts
-2
-My Team(You)
-@mourinho
-0.0 pts
+---
 
+### Bug 1 — Team naming ✅ FIXED
+Team names required with validation. Duplicate names in same contest blocked.
 
-instread of my team, here should be name of the team and username below is okay
+### Bug 2 — Number input placeholder 0 issue ✅ FIXED
+Number inputs no longer have sticky placeholder 0.
 
-2, when i try to fill a bix with number, lets say score boc or sany box in whole website, io have to delete the placerholder 0 evrytime, not good user exoerience
+### Bug 3 — Admin scoring UX ✅ FIXED
+Tabbed layout, match selector dropdown, save/finalize buttons with proper feedback.
 
-3. Make filling dcoring easy for admin , like admin can fill necessary part and fast, what is the best way to di this ? brainstorm with me . 
+### Bug 4 — Countdown timer ✅ FIXED
+Shared `useCountdown` hook in `Countdown.tsx`, used across contest detail, match detail, and contest cards.
 
-4. Implement countdown in the contest, that this muuch minutes are remianing for match to strart, and then when march start, it should show match ongoing somehere in UI , Plan first
+### Bug 5 — Header/profile clickability ✅ FIXED
+@username and vINR balance are clickable Links to /profile. Logout has distinct styling.
 
-5. @shailu is written on header, butits not clickacke , profile is spearate tab, make @shailu clickable, logout button is clickable but both looks same, there is wallet money nearby, i dont think this looks good, how can you iporove this using creativity and what are your ideas to make our UI looks more good, not just for this any other ideas dor other things, you can take isnoiation from only degingns of website,  maybe figma and oher latest AI pplatforms which ar efgor sieign, what can we do moreout ebsite , Plan first
+### Bug 6 — Live score updates during match ✅ FIXED
+Saving stats updates fantasy points immediately. Pages auto-refresh every 60s during live matches.
 
-6. I am testing everything on staging, via admin, I upated scorrecard for two lays andsaveed score, not finalize and disctribute yet, on this step, all users points should get updated too ? what do you think ? if I keep udpating score during mid game , users should be able fine that their score is also getting updated. lets plan
+### Bug 7 — Finalize score confirmation dialog ✅ FIXED
+Modal with warnings, checklist of consequences, Cancel and "Yes, Finalize" buttons.
 
-7. when admin run finalize score, a score poo show up, to cncel or ok, can we make this panel a bit better ? 
+### Bug 8 — Contest completion display (WGF messages) ✅ FIXED
+WGF-style messages after completion based on rank. Prize shown on leaderboard.
 
-8. Contest completed, prize distirbuted, distribution worked well. but on the beoard or in my contest, user dont see that, you got fucked or other things we talked about, remmeber that ? or i soudl explain. 
+### Bug 9 — Contest page restructure ✅ FIXED
+"Available" and "My Contests" tabs. Join-by-code integrated. Create contest accessible.
 
+### Bug 10 — Wallet/vINR page UX ✅ FIXED
+/tokens redirects to /profile. Profile combines wallet features: Buy vINR, Withdraw, History tabs.
 
-9. Mot importnat, name create tab to create contest, or just rmeove this ? As a normal user, i should just create team and join the contest, we should show kive andupcomin contest list, so insted lets create a contest poage on header, On home , we have two things matches and my contest, okay, my contest ca show a list of contest then take me to the joned contest, contest oage will show upcoing and joined contest both, and when user clock on contest wee cnas tatus ofd create team option, 
+### Bug 11 — Join contest inside contest page ✅ FIXED
+Join button inline on contest detail page. No separate header item.
 
-10, vINR page, is this good UX ? we should rename it to wallet, and make it look good. 
+### Bug 12 — Buy request form reset ✅ FIXED
+Form fields reset after successful submission.
 
-11. this join contest button can be inside contest page, no need for another header, whe usr clock joi contest and button popos to fill id and join contest. simple 
+### Bug 13 — Buy/sell request pending state ✅ FIXED
+Pending banners + History tab with status badges (PENDING, APPROVED, REJECTED).
 
+### Bug 14 — Cricket API integration 🔲 SKIPPED
+API key saved. Will address separately.
 
-12. when buy request gets submitted, data inside the request form should get ressetted right ? when user clock in the box, you can give it same suggestion but dont keep that, it looks ugly, 
+### Bug 15 — Hide teams before match start ✅ FIXED
+API returns `teamHidden: true` for non-owners before match. UI shows lock message.
 
-13. When user submit a buy or sell request, notifiaiton on UI come andit should go away , we should show reuwst is pending, once success it show go in hsitory and show successm dont you think somehting like this is better experrinve for user ? 
+### Bug 16 — Saved teams visibility ✅ FIXED
+Teams auto-saved during contest join. Visible on team selection page.
 
-14. I got the API KEY of https://cricketdata.org/, save it safely: 077d5a2f-1119-4159-b051-9c995cde5b2d . You should read this to udnerstadn if we canuse it or not https://cricketdata.org/how-to-use-cricket-data-api.aspx, get mroe information in this, it says i have 100 free request per day, check it its working or not. and what is best wya fpr us to use it . 
+### Bug 17 — Join with existing saved team ✅ FIXED
+"Your Saved Teams" section on team selection. Pick saved team or build new.
+
+### Bug 18 — Combined wallet + profile ✅ FIXED
+Profile page has My Activity, Buy vINR, Withdraw, and History tabs.
+
+### Bug 19 — Disable edit/add buttons after match starts ✅ FIXED
+Buttons only render when `!matchStarted`. Edit button also checks `canEdit`.
+
+### Bug 20 — Team view shows points instead of price ✅ FIXED
+Shows fantasy points with captain/VC multipliers after match starts.
+
+### Bug 21 — IPL team logos blank on UI ✅ FIXED
+ESPN CDN URLs were returning 404 (9 out of 10 broken). Downloaded all 10 logos to `public/teams/` as local PNGs. Switched from remote ESPN URLs to local `/teams/{INITIALS}.png` paths.
+
+---
+
+## Codebase Cleanup (Gemini mess) ✅ DONE
+
+| # | Issue | Status |
+|---|-------|--------|
+| 1 | Duplicate `useCountdown` hook in 2 pages | ✅ Extracted to shared hook in `Countdown.tsx` |
+| 2 | Duplicate team validation in 2 API routes | ✅ Extracted to `src/lib/player-utils.ts` |
+| 3 | Duplicate player+stats fetch in 3 API routes | ✅ Extracted `resolvePlayerDetails()` to `player-utils.ts` |
+| 4 | `as any` type cast in enter/route.ts | ✅ Fixed — uses properly typed `PlayerSelection[]` |
+| 5 | Inline dashboard components | — Skipped (single-use, not worth extracting) |
+| 6 | Dead comments in 2 files | ✅ Removed |
+| 7 | Inconsistent error handling | — Low priority, deferred |
+| 8 | Navbar array mutation | ✅ Fixed — uses spread syntax |
+| 9 | Race condition in profile useEffect | ✅ Fixed — `setLoading(false)` in `.finally()` |
+| 10 | Magic number in match-sync.ts | ✅ Named constant `MATCH_DURATION_MS` |
+| 11 | Duplicate role constants | ✅ Centralized `ROLE_ORDER` and `ROLE_LABELS` in `utils.ts` |

@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { formatDate } from "@/lib/utils";
+import { formatDate, getTeamInfo } from "@/lib/utils";
+import { useCountdown } from "@/components/Countdown";
 
 interface Contest {
   id: string;
@@ -42,8 +43,8 @@ export default function ContestDetailPage() {
   const [joinLoading, setJoinLoading] = useState(false);
   const [joinError, setJoinError] = useState("");
 
-  useEffect(() => {
-    fetch(`/api/contests/${id}`)
+  const loadContest = (c: typeof id) => {
+    return fetch(`/api/contests/${c}`)
       .then((r) => r.json())
       .then((data) => {
         setContest(data.contest);
@@ -52,7 +53,22 @@ export default function ContestDetailPage() {
         setUserId(data.userId);
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    loadContest(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // Auto-refresh every 60s during LIVE matches so users see score updates
+  useEffect(() => {
+    if (!contest) return;
+    const isMatchLive = contest.match.status === "LIVE" || new Date(contest.match.date) <= new Date();
+    if (!isMatchLive || contest.status === "COMPLETED") return;
+    const interval = setInterval(() => loadContest(id), 60_000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contest?.match.status, contest?.status, id]);
 
   function copyInviteCode() {
     if (!contest) return;
@@ -81,7 +97,7 @@ export default function ContestDetailPage() {
 
   function shareContest() {
     if (!contest) return;
-    const text = `Join my Stars11 contest "${contest.name}" for ${contest.match.team1} vs ${contest.match.team2}!\nEntry: ${contest.entryFee} tokens\nCode: ${contest.inviteCode}\n${window.location.href}`;
+    const text = `Join my WGF contest "${contest.name}" for ${contest.match.team1} vs ${contest.match.team2}!\nEntry: ${contest.entryFee} tokens\nCode: ${contest.inviteCode}\n${window.location.href}`;
     if (navigator.share) {
       navigator.share({ text });
     } else {
@@ -91,11 +107,15 @@ export default function ContestDetailPage() {
     }
   }
 
+  const matchDate = contest ? new Date(contest.match.date) : null;
+  const { countdown, minutesUntil } = useCountdown(matchDate);
+
   if (loading) return <div className="text-muted">Loading...</div>;
   if (!contest) return <div className="text-danger">Contest not found</div>;
 
-  const canJoin = contest.status === "OPEN" && !isParticipant;
-  const canAddTeam = contest.status === "OPEN" && isParticipant;
+  const matchStarted = new Date(contest.match.date) <= new Date();
+  const canJoin = contest.status === "OPEN" && !isParticipant && !matchStarted;
+  const canAddTeam = contest.status === "OPEN" && isParticipant && !matchStarted;
 
   return (
     <div>
@@ -120,20 +140,41 @@ export default function ContestDetailPage() {
           </span>
         </div>
 
-        <div className="text-lg font-semibold mb-1">
-          {contest.match.team1} <span className="text-muted">vs</span>{" "}
-          {contest.match.team2}
+        {(() => {
+          const t1 = getTeamInfo(contest.match.team1);
+          const t2 = getTeamInfo(contest.match.team2);
+          return (
+            <div className="flex items-center gap-3 mb-1">
+              <div className="flex -space-x-1.5">
+                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center ring-2 ring-card shadow-sm overflow-hidden p-0.5">
+                  <img src={t1.logo} alt={t1.initials} className="w-full h-full object-contain" />
+                </div>
+                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center ring-2 ring-card shadow-sm overflow-hidden p-0.5">
+                  <img src={t2.logo} alt={t2.initials} className="w-full h-full object-contain" />
+                </div>
+              </div>
+              <div className="text-lg font-semibold">
+                {t1.initials} <span className="text-muted">vs</span> {t2.initials}
+              </div>
+            </div>
+          );
+        })()}
+        <div className="flex items-center gap-2 flex-wrap text-sm text-muted mb-3">
+          <span>{formatDate(new Date(contest.match.date))} &middot; {contest.match.venue}</span>
+          {!matchStarted && minutesUntil > 0 && (
+            <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full tabular-nums ${
+              minutesUntil <= 60 ? "bg-danger/15 text-danger" : "bg-primary/15 text-primary"
+            }`}>
+              ⏱ {countdown}
+            </span>
+          )}
+          {matchStarted && contest.match.status !== "COMPLETED" && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-danger/15 text-danger">
+              <span className="w-1.5 h-1.5 rounded-full bg-danger animate-pulse" />
+              Live
+            </span>
+          )}
         </div>
-        <div className="text-sm text-muted mb-3">
-          {formatDate(new Date(contest.match.date))} &middot; {contest.match.venue}
-        </div>
-
-        {contest.match.status === "LIVE" && (
-          <div className="flex items-center gap-2 bg-danger/10 border border-danger/20 rounded-lg px-3 py-2 mb-4 text-sm text-danger font-semibold">
-            <span className="w-2 h-2 rounded-full bg-danger animate-pulse flex-shrink-0" />
-            Match is ongoing — scores updating
-          </div>
-        )}
 
         <div className="grid grid-cols-3 gap-3 text-center mb-4">
           <div className="bg-background rounded-lg p-3">
@@ -194,7 +235,7 @@ export default function ContestDetailPage() {
         {canJoin && (
           <button
             onClick={() => router.push(`/contests/${id}/team`)}
-            className="w-full bg-primary text-background font-semibold rounded-lg py-2.5 hover:bg-primary-hover transition-colors"
+            className="w-full bg-primary text-white font-semibold rounded-lg py-2.5 hover:bg-primary-hover transition-colors"
           >
             {isCreator ? "Pick My Team & Join" : `Join Contest (${contest.entryFee} vINR)`}
           </button>
@@ -210,9 +251,17 @@ export default function ContestDetailPage() {
         )}
       </div>
 
-      <h2 className="text-lg font-semibold mb-3">
-        {contest.status === "COMPLETED" ? "Final Leaderboard" : "Participants"}
-      </h2>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-semibold">
+          {contest.status === "COMPLETED" ? "Final Leaderboard" : "Participants"}
+        </h2>
+        {matchStarted && contest.status !== "COMPLETED" && (
+          <span className="text-xs text-danger flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-danger animate-pulse" />
+            Live scores
+          </span>
+        )}
+      </div>
 
       {/* Phatka messages — only for completed contests */}
       {contest.status === "COMPLETED" && userId && (() => {
@@ -266,7 +315,7 @@ export default function ContestDetailPage() {
               <button
                 type="submit"
                 disabled={joinLoading || joinCode.length < 6}
-                className="bg-primary text-background text-sm font-semibold rounded-lg px-4 py-2 hover:bg-primary-hover disabled:opacity-50 transition-colors"
+                className="bg-primary text-white text-sm font-semibold rounded-lg px-4 py-2 hover:bg-primary-hover disabled:opacity-50 transition-colors"
               >
                 {joinLoading ? "..." : "Join"}
               </button>

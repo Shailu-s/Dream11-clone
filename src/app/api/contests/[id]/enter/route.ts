@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { validateTeam } from "@/lib/team-validation";
+import { validatePlayerSelections } from "@/lib/player-utils";
 
 export async function POST(
   req: Request,
@@ -31,53 +31,74 @@ export async function POST(
       return NextResponse.json({ error: "Contest is full" }, { status: 400 });
     }
 
+    // Require team name
+    if (!teamName || !teamName.trim()) {
+      return NextResponse.json({ error: "Team name is required" }, { status: 400 });
+    }
+
+    // Check for duplicate team name in this contest (same user)
+    const existingEntry = await prisma.contestEntry.findFirst({
+      where: { contestId: id, userId: user.id, teamName: teamName.trim() },
+    });
+    if (existingEntry) {
+      return NextResponse.json({ error: "You already have a team with this name in this contest. Choose a different name." }, { status: 400 });
+    }
+
     // Check balance
     if (user.tokenBalance < contest.entryFee) {
       return NextResponse.json({ error: "Insufficient tokens" }, { status: 400 });
     }
 
-    // Get player data for validation
-    const playerIds = players.map((p: { playerId: string }) => p.playerId);
-    const playerData = await prisma.player.findMany({
-      where: { id: { in: playerIds } },
-    });
-
     // Validate team
-    const validation = validateTeam(players, playerData);
-    if (!validation.valid) {
-      return NextResponse.json({ error: validation.errors.join(", ") }, { status: 400 });
+    const result = await validatePlayerSelections(players);
+    if (!result.valid) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
-    // Deduct entry fee and create entry in a transaction
-    await prisma.$transaction([
-      prisma.user.update({
-        where: { id: user.id },
-        data: { tokenBalance: { decrement: contest.entryFee } },
-      }),
-      prisma.tokenTransaction.create({
-        data: {
-          userId: user.id,
-          type: "CONTEST_ENTRY",
-          amount: contest.entryFee,
-          status: "APPROVED",
-        },
-      }),
-      prisma.contestEntry.create({
-        data: {
-          contestId: id,
-          userId: user.id,
-          teamName: teamName || "My Team",
-          players,
-        },
-      }),
-      prisma.contest.update({
+    // Auto-save team to SavedTeam (upsert: if same name+match exists, update players)
+    const existingSavedTeam = await prisma.savedTeam.findFirst({
+      where: { userId: user.id, matchId: contest.matchId, teamName: teamName.trim() },
+    });
+
+    // Deduct entry fee, create entry, and auto-save team in a transaction
+    const trimmedName = teamName.trim();
+    const matchId = contest.matchId;
+    const savedTeamId = existingSavedTeam?.id;
+    const userId = user.id;
+    const entryFee = contest.entryFee;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { tokenBalance: { decrement: entryFee } },
+      });
+      await tx.tokenTransaction.create({
+        data: { userId, type: "CONTEST_ENTRY", amount: entryFee, status: "APPROVED" },
+      });
+      await tx.contestEntry.create({
+        data: { contestId: id, userId, teamName: trimmedName, players },
+      });
+      await tx.contest.update({
         where: { id },
-        data: { prizePool: { increment: contest.entryFee } },
-      }),
-    ]);
+        data: { prizePool: { increment: entryFee } },
+      });
+      if (savedTeamId) {
+        await tx.savedTeam.update({ where: { id: savedTeamId }, data: { players } });
+      } else {
+        await tx.savedTeam.create({
+          data: { userId, matchId, teamName: trimmedName, players },
+        });
+      }
+    });
 
     return NextResponse.json({ message: "Team submitted successfully" });
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Server error";
+    // requireAuth throws on unauthenticated; other errors are server-side
+    if (msg === "Unauthorized" || msg === "Forbidden") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[contest enter]", err);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

@@ -1,36 +1,166 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Stars11 — Fantasy Cricket Platform
 
-## Getting Started
+Private fantasy cricket app for IPL 2026. Friends create contests, pick Dream11-style teams, compete for virtual token prizes.
 
-First, run the development server:
+---
+
+## Environments
+
+| | Staging (local) | Production |
+|---|---|---|
+| **Frontend** | `npm run dev` → localhost:3000 | Vercel (auto-deploy on `git push`) |
+| **Database** | Local PostgreSQL on port 5433 | Supabase (PostgreSQL) |
+| **Auth** | JWT + OTP via Brevo SMTP | Same |
+| **Config** | `.env` | Vercel Environment Variables |
+
+---
+
+## Local Dev Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev       # starts Next.js on localhost:3000
+npm run seed      # seeds IPL 2026 matches + players into local DB
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Local DB runs via Docker on port 5433. Connection string in `.env`:
+```
+DATABASE_URL="postgresql://postgres:postgres@localhost:5433/stars11?schema=public"
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## How Prod Deploys Work
 
-## Learn More
+### Code changes (no DB schema change)
+```bash
+git add .
+git commit -m "your message"
+git push origin main   # Vercel auto-deploys
+```
 
-To learn more about Next.js, take a look at the following resources:
+### When prisma/schema.prisma changes (NEW COLUMNS OR TABLES)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Supabase does NOT auto-apply schema changes. `prisma migrate` doesn't work with Supabase free tier the usual way. The workflow that works is:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Step 1 — Generate the SQL Supabase needs to run:**
+```bash
+# See what SQL the schema change would produce:
+npx prisma migrate diff \
+  --from-schema-datasource prisma/schema.prisma \
+  --to-schema-datamodel prisma/schema.prisma \
+  --script
+```
 
-## Deploy on Vercel
+Or more reliably — just read the diff yourself and write the raw SQL manually. It's usually simple (`ALTER TABLE ... ADD COLUMN ...`).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**Step 2 — Run it in Supabase SQL Editor:**
+- Go to Supabase dashboard → SQL Editor
+- Paste and run the raw SQL
+- Verify the column/table exists in Table Editor
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Step 3 — Then push code:**
+```bash
+git push origin main
+```
+
+### Schema changes in this session (run these on Supabase before pushing)
+
+Two columns were added since the last prod push:
+
+```sql
+-- Added to matches table
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS "cricApiMatchId" TEXT UNIQUE;
+
+-- Added to player_match_stats table  
+ALTER TABLE player_match_stats ADD COLUMN IF NOT EXISTS "isInPlayingXI" BOOLEAN NOT NULL DEFAULT false;
+```
+
+Run both in Supabase SQL Editor, then push.
+
+---
+
+## Vercel Environment Variables
+
+These must be set in Vercel dashboard (Settings → Environment Variables). The `.env` file is local only and never deployed.
+
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | Supabase PostgreSQL connection string |
+| `JWT_SECRET` | JWT signing secret |
+| `ADMIN_EMAIL` | Admin account email |
+| `BREVO_SMTP_KEY` | Brevo transactional email API key |
+| `CRICKET_DATA_API_KEY` | CricAPI key 1 (primary) |
+| `CRICKET_DATA_API_KEY_2` | CricAPI key 2 (fallback) |
+| `CRICKET_DATA_API_KEY_3` | CricAPI key 3 (fallback) |
+
+### CricAPI Key Status
+- Each key: 100 requests/day, resets at midnight UTC (~5:30 AM IST)
+- Each "Fetch from API" click in admin = 2 API calls (match lookup + scorecard)
+- Keys are tried in order (1 → 2 → 3). If one is rate-limited, next is tried after 2s delay
+- Do NOT use auto-sync — it burns the daily limit fast
+- Keys: `077d5a2f` (primary), `8ccab56b` (key 2), `20ea6e4a` (key 3)
+
+---
+
+## Admin Panel
+
+URL: `/admin` — only accessible to the ADMIN role user.
+
+Admin email is set via `ADMIN_EMAIL` env var. On first signup with that email, the user gets ADMIN role automatically.
+
+### Scoring Workflow (per match)
+1. Go to Admin → Scoring tab
+2. Select the match
+3. Click "Fetch from API" — pulls scorecard from CricAPI, fills stats form
+4. Review/correct stats if needed
+5. Click "Save Stats" — saves to DB, recalculates fantasy points for all entries live
+6. Repeat steps 3-5 during the match (up to ~4-5 times)
+7. After match ends: click "Finalize Scoring" — ranks entries, distributes prizes, marks match COMPLETED
+
+---
+
+## Key Technical Decisions
+
+- **No prisma migrations folder** — using `prisma db push` style (schema sync). For prod, run raw SQL on Supabase manually before deploying schema changes.
+- **No real payment gateway** — tokens are virtual. Users pay admin via UPI externally, admin approves requests manually in the admin panel.
+- **No live scores** — CricAPI is used only to fill historical/completed scorecard data after matches. Users check Cricbuzz for live scores themselves.
+- **Auth** — JWT-based sessions (not Supabase Auth). OTPs sent via Brevo email.
+- **Team visibility** — other players' teams are hidden until the match starts (enforced server-side).
+
+---
+
+## Project Structure
+
+```
+src/
+  app/
+    (app)/          # All authenticated pages
+      admin/        # Admin panel
+      contests/     # Contest list, detail, team selection, entry view
+      dashboard/    # User dashboard
+      matches/      # Match pages
+      profile/      # Profile + wallet
+      teams/        # Saved teams
+    api/            # API routes (backend)
+      admin/        # Admin-only endpoints
+      contests/     # Contest CRUD + entry
+      matches/      # Match list
+      players/      # Player list for match
+      teams/        # Saved team CRUD
+      tokens/       # Token buy/withdraw requests
+    login/          # Auth page
+  components/       # Shared UI components
+  lib/
+    auth.ts         # JWT auth, OTP, requireAuth/requireAdmin
+    cricket-api.ts  # CricAPI integration with 3-key fallback
+    match-sync.ts   # Auto-update match status (UPCOMING→LIVE→COMPLETED)
+    player-utils.ts # Shared player validation + resolution
+    prisma.ts       # Prisma client singleton
+    scoring.ts      # Fantasy points calculation (Dream11 rules)
+    utils.ts        # Shared constants (ROLE_ORDER, ROLE_LABELS, etc.)
+prisma/
+  schema.prisma     # Database schema
+scripts/
+  seed.ts           # Seeds IPL 2026 matches + players
+```

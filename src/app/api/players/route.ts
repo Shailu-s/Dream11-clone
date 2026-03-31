@@ -21,8 +21,20 @@ export async function GET(req: Request) {
 
   const players = await prisma.player.findMany({
     where,
+    include: {
+      matchStats: matchId ? {
+        where: { matchId }
+      } : false
+    },
     orderBy: [{ role: "asc" }, { creditPrice: "desc" }],
-  });
+  }) as any[];
 
-  return NextResponse.json({ players });
+  // Transform to include isInPlayingXI as a top-level property
+  const result = players.map(p => ({
+    ...p,
+    isInPlayingXI: p.matchStats?.[0]?.isInPlayingXI ?? false,
+    matchStats: undefined // remove extra nesting
+  }));
+
+  return NextResponse.json({ players: result });
 }

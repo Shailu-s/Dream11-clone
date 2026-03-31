@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { formatDate } from "@/lib/utils";
+import { useCountdown } from "@/components/Countdown";
 
 interface Match {
   id: string;
@@ -31,39 +32,6 @@ interface SavedTeam {
   players: Array<{ playerId: string; isCaptain: boolean; isViceCaptain: boolean }>;
   matchId: string;
   createdAt: string;
-}
-
-function useCountdown(matchDate: Date | null) {
-  const [now, setNow] = useState(() => new Date());
-
-  useEffect(() => {
-    if (!matchDate) return;
-    const interval = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(interval);
-  }, [matchDate]);
-
-  if (!matchDate) return { countdown: "", minutesUntil: 0 };
-
-  const msUntil = matchDate.getTime() - now.getTime();
-  const totalSeconds = Math.floor(msUntil / 1000);
-  const minutesUntil = Math.floor(msUntil / 60000);
-  const hoursUntil = Math.floor(minutesUntil / 60);
-  const daysUntil = Math.floor(hoursUntil / 24);
-
-  let countdown = "";
-  if (totalSeconds <= 0) {
-    countdown = "Starting now";
-  } else if (totalSeconds < 3600) {
-    const m = Math.floor(totalSeconds / 60);
-    const s = totalSeconds % 60;
-    countdown = `${m}m ${s}s`;
-  } else if (hoursUntil < 24) {
-    countdown = `${hoursUntil}h ${minutesUntil % 60}m`;
-  } else {
-    countdown = `${daysUntil}d ${hoursUntil % 24}h`;
-  }
-
-  return { countdown, minutesUntil };
 }
 
 export default function MatchDetailPage() {
@@ -129,7 +97,8 @@ export default function MatchDetailPage() {
   if (loading) return <div className="text-muted">Loading...</div>;
   if (!match) return <div className="text-danger">Match not found</div>;
 
-  const isUpcoming = match.status === "UPCOMING";
+  const matchStarted = new Date(match.date) <= new Date();
+  const isUpcoming = match.status === "UPCOMING" && !matchStarted;
 
   return (
     <div className="space-y-6">
@@ -145,13 +114,13 @@ export default function MatchDetailPage() {
             </div>
           </div>
           <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-            match.status === "LIVE"
+            match.status === "LIVE" || matchStarted
               ? "bg-danger/20 text-danger"
               : match.status === "UPCOMING"
               ? "bg-success/20 text-success"
               : "bg-muted/20 text-muted"
           }`}>
-            {match.status}
+            {match.status === "UPCOMING" && matchStarted ? "LIVE" : match.status}
           </span>
         </div>
         {isUpcoming && minutesUntil > 0 && (
@@ -164,12 +133,7 @@ export default function MatchDetailPage() {
             {minutesUntil <= 60 && <span className="ml-1 text-xs font-normal opacity-80">— teams lock soon!</span>}
           </div>
         )}
-        {isUpcoming && minutesUntil <= 0 && (
-          <div className="bg-danger/10 text-danger text-sm font-semibold rounded-lg px-3 py-2 text-center">
-            🔒 Teams are now locked
-          </div>
-        )}
-        {match.status === "LIVE" && (
+        {matchStarted && match.status !== "COMPLETED" && (
           <div className="bg-danger/10 text-danger text-sm font-semibold rounded-lg px-3 py-2 text-center flex items-center justify-center gap-2">
             <span className="w-2 h-2 rounded-full bg-danger animate-pulse inline-block" />
             Match is Live — teams are locked
@@ -183,7 +147,7 @@ export default function MatchDetailPage() {
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => router.push(`/matches/${matchId}/team`)}
-              className="bg-primary text-background font-semibold rounded-lg py-2.5 px-3 text-sm hover:bg-primary-hover transition-colors"
+              className="bg-primary text-white font-semibold rounded-lg py-2.5 px-3 text-sm hover:bg-primary-hover transition-colors"
             >
               + Create Team
             </button>
@@ -215,7 +179,7 @@ export default function MatchDetailPage() {
               <button
                 type="submit"
                 disabled={joinLoading || joinCode.length < 6}
-                className="bg-primary text-background text-sm font-semibold rounded-lg px-4 py-2 hover:bg-primary-hover disabled:opacity-50 transition-colors"
+                className="bg-primary text-white text-sm font-semibold rounded-lg px-4 py-2 hover:bg-primary-hover disabled:opacity-50 transition-colors"
               >
                 {joinLoading ? "..." : "Join"}
               </button>

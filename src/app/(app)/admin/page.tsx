@@ -45,6 +45,7 @@ interface PlayerRow {
   team: string;
   role: string;
   creditPrice: number;
+  isInPlayingXI?: boolean;
 }
 
 interface PlayerStatForm {
@@ -84,7 +85,7 @@ const EMPTY_STAT = {
   isOut: false,
 };
 
-type AdminTab = "tokens" | "scoring" | "matches" | "users";
+type AdminTab = "tokens" | "scoring" | "matches" | "users" | "playing-xi";
 
 export default function AdminPage() {
   const { user: authUser, loading: authLoading } = useAuth();
@@ -93,6 +94,7 @@ export default function AdminPage() {
   const [matches, setMatches] = useState<MatchRow[]>([]);
   const [players, setPlayers] = useState<PlayerRow[]>([]);
   const [playerStats, setPlayerStats] = useState<Record<string, PlayerStatForm>>({});
+  const [playingXI, setPlayingXI] = useState<Record<string, boolean>>({});
   const [selectedMatchId, setSelectedMatchId] = useState("");
   const [loading, setLoading] = useState(true);
   const [scoringLoading, setScoringLoading] = useState(false);
@@ -101,6 +103,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>("tokens");
   const [matchFilter, setMatchFilter] = useState<"ALL" | "UPCOMING" | "LIVE" | "COMPLETED">("UPCOMING");
   const [showFinalizeModal, setShowFinalizeModal] = useState(false);
+  const [isFetchingApi, setIsFetchingApi] = useState(false);
 
   async function fetchAdminData() {
     const [usersRes, txRes, matchesRes] = await Promise.all([
@@ -219,6 +222,14 @@ export default function AdminPage() {
 
       setPlayers(nextPlayers);
       setPlayerStats(nextStats);
+
+      // Initialize playing XI state from fetched players
+      const nextPlayingXI: Record<string, boolean> = {};
+      for (const p of nextPlayers) {
+        nextPlayingXI[p.id] = p.isInPlayingXI ?? false;
+      }
+      setPlayingXI(nextPlayingXI);
+
       setScoringLoading(false);
     }
 
@@ -321,6 +332,68 @@ export default function AdminPage() {
     setMessage(data.message || "Stats saved");
   }
 
+  async function handleSavePlayingXI() {
+    if (!selectedMatchId) return;
+
+    setSubmittingId(`playing-xi-${selectedMatchId}`);
+    setMessage("");
+
+    const payload = Object.entries(playingXI).map(([playerId, isInPlayingXI]) => ({
+      playerId,
+      isInPlayingXI,
+    }));
+
+    const res = await fetch("/api/admin/matches/playing-xi", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchId: selectedMatchId, playingXIs: payload }),
+    });
+
+    const data = await res.json();
+    setSubmittingId(null);
+
+    if (!res.ok) {
+      setMessage(data.error || "Failed to save playing XI");
+      return;
+    }
+
+    setMessage(data.message || "Playing XI updated");
+  }
+
+  async function handleFetchApi() {
+    if (!selectedMatchId) return;
+
+    setIsFetchingApi(true);
+    setMessage("");
+
+    try {
+      const res = await fetch(`/api/admin/scoring/fetch-api?matchId=${selectedMatchId}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessage(data.error || "Failed to fetch API stats");
+        return;
+      }
+
+      setPlayerStats((current) => {
+        const next = { ...current };
+        for (const stat of data.playerStats) {
+          if (next[stat.playerId]) {
+            next[stat.playerId] = { ...next[stat.playerId], ...stat };
+          }
+        }
+        return next;
+      });
+
+      setMessage(`Fetched stats from API: ${data.matchName} (${data.status})`);
+    } catch (err) {
+      console.error(err);
+      setMessage("An error occurred while fetching API stats");
+    } finally {
+      setIsFetchingApi(false);
+    }
+  }
+
   async function handleFinalizeScoring() {
     if (!selectedMatchId) return;
     setShowFinalizeModal(true);
@@ -366,6 +439,7 @@ export default function AdminPage() {
 
   const tabs: { key: AdminTab; label: string; count?: number }[] = [
     { key: "tokens", label: "vINR Requests", count: transactions.length },
+    { key: "playing-xi", label: "Playing XI" },
     { key: "scoring", label: "Scoring" },
     { key: "matches", label: "Matches" },
     { key: "users", label: "Users", count: users.length },
@@ -402,7 +476,7 @@ export default function AdminPage() {
             onClick={() => setActiveTab(tab.key)}
             className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
               activeTab === tab.key
-                ? "bg-primary text-background"
+                ? "bg-primary text-white"
                 : "text-muted hover:text-foreground"
             }`}
           >
@@ -484,6 +558,86 @@ export default function AdminPage() {
         </section>
       )}
 
+      {/* Playing XI Tab */}
+      {activeTab === "playing-xi" && (
+        <section className="space-y-4">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <label className="mb-2 block text-sm text-muted">Select Match</label>
+            <select
+              value={selectedMatchId}
+              onChange={(e) => setSelectedMatchId(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+            >
+              {matches.filter(m => m.status !== "COMPLETED").map((match) => (
+                <option key={match.id} value={match.id}>
+                  {match.team1} vs {match.team2} &middot; {match.status} &middot;{" "}
+                  {new Date(match.date).toLocaleDateString("en-IN")}
+                </option>
+              ))}
+            </select>
+
+            <div className="mt-4">
+              <button
+                onClick={handleSavePlayingXI}
+                disabled={scoringLoading || players.length === 0 || submittingId === `playing-xi-${selectedMatchId}`}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {submittingId === `playing-xi-${selectedMatchId}` ? "Saving..." : "Save Playing XI"}
+              </button>
+            </div>
+          </div>
+
+          {scoringLoading ? (
+            <div className="text-sm text-muted">Loading squad...</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[selectedMatch?.team1, selectedMatch?.team2].map((teamName) => {
+                if (!teamName) return null;
+                const teamPlayers = players.filter(p => p.team === teamName);
+                const count = teamPlayers.filter(p => playingXI[p.id]).length;
+
+                return (
+                  <div key={teamName} className="rounded-xl border border-border bg-card overflow-hidden">
+                    <div className="bg-background px-4 py-2 border-b border-border flex justify-between items-center">
+                      <span className="font-bold">{teamName}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${count === 11 ? "bg-success/20 text-success" : "bg-muted/20 text-muted"}`}>
+                        {count} Selected
+                      </span>
+                    </div>
+                    <div className="p-2 space-y-1">
+                      {teamPlayers.map(player => (
+                        <label 
+                          key={player.id} 
+                          className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
+                            playingXI[player.id] ? "bg-primary/10 border-primary/20" : "hover:bg-background"
+                          } border border-transparent`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <input 
+                              type="checkbox"
+                              checked={playingXI[player.id] || false}
+                              onChange={(e) => setPlayingXI(prev => ({ ...prev, [player.id]: e.target.checked }))}
+                              className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                            />
+                            <div>
+                              <div className="text-sm font-medium">{player.name}</div>
+                              <div className="text-[10px] text-muted uppercase font-bold">{player.role}</div>
+                            </div>
+                          </div>
+                          {playingXI[player.id] && (
+                            <span className="w-2 h-2 rounded-full bg-success shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
       {/* Scoring Tab */}
       {activeTab === "scoring" && (
         <section className="space-y-4">
@@ -508,18 +662,26 @@ export default function AdminPage() {
               </div>
             )}
 
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                onClick={() => handleFetchApi()}
+                disabled={scoringLoading || isFetchingApi || players.length === 0}
+                className="rounded-lg bg-primary/20 border border-primary/30 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/30 transition-colors disabled:opacity-50"
+              >
+                {isFetchingApi ? "Fetching..." : "Fetch from API"}
+              </button>
+
               <button
                 onClick={handleSaveStats}
-                disabled={scoringLoading || players.length === 0 || submittingId === `save-${selectedMatchId}`}
+                disabled={scoringLoading || isFetchingApi || players.length === 0 || submittingId === `save-${selectedMatchId}`}
                 className="rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {submittingId === `save-${selectedMatchId}` ? "Saving..." : "Save Stats"}
               </button>
               <button
                 onClick={handleFinalizeScoring}
-                disabled={scoringLoading || players.length === 0 || submittingId === `finalize-${selectedMatchId}`}
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-background disabled:opacity-50"
+                disabled={scoringLoading || isFetchingApi || players.length === 0 || submittingId === `finalize-${selectedMatchId}`}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {submittingId === `finalize-${selectedMatchId}` ? "Finalizing..." : "Finalize & Distribute Prizes"}
               </button>
@@ -700,7 +862,7 @@ export default function AdminPage() {
                         disabled={submittingId === match.id || match.status === status}
                         className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-30 ${
                           match.status === status
-                            ? "bg-primary text-background"
+                            ? "bg-primary text-white"
                             : "bg-background text-foreground hover:bg-card-hover border border-border"
                         }`}
                       >
@@ -765,26 +927,36 @@ export default function AdminPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full shadow-xl space-y-4">
             <div className="text-center">
-              <div className="text-4xl mb-3">🏆</div>
-              <h2 className="text-lg font-bold">Finalize Scoring</h2>
-              <p className="text-sm text-muted mt-1">
+              <div className="text-3xl mb-2">🏆</div>
+              <h2 className="text-lg font-bold">Finalize & Distribute Prizes</h2>
+              <p className="text-sm text-muted mt-1 font-semibold">
                 {selectedMatch.team1} vs {selectedMatch.team2}
               </p>
+              {selectedMatch._count.contests > 0 && (
+                <p className="text-xs text-muted mt-1">
+                  {selectedMatch._count.contests} contest{selectedMatch._count.contests !== 1 ? "s" : ""} will be closed
+                </p>
+              )}
             </div>
 
-            <div className="bg-danger/10 border border-danger/20 rounded-lg px-4 py-3 text-sm text-danger space-y-1">
-              <div className="font-semibold">This cannot be undone.</div>
-              <ul className="text-xs space-y-0.5 mt-1 list-disc list-inside text-danger/80">
-                <li>Fantasy points will be calculated for all entries</li>
-                <li>Contest leaderboard will be ranked</li>
-                <li>Prize tokens will be credited to winners</li>
-                <li>Contest will be marked as Completed</li>
-              </ul>
+            <div className="bg-background rounded-xl border border-border p-3 space-y-2 text-xs">
+              <div className="flex items-center gap-2 text-foreground">
+                <span className="text-success">✓</span> Fantasy points calculated from saved stats
+              </div>
+              <div className="flex items-center gap-2 text-foreground">
+                <span className="text-success">✓</span> Contest leaderboards ranked
+              </div>
+              <div className="flex items-center gap-2 text-foreground">
+                <span className="text-success">✓</span> Prize vINR credited to winners automatically
+              </div>
+              <div className="flex items-center gap-2 text-foreground">
+                <span className="text-success">✓</span> All contests marked as Completed
+              </div>
             </div>
 
-            <p className="text-xs text-muted text-center">
-              Make sure all player stats are saved before finalizing.
-            </p>
+            <div className="bg-danger/10 border border-danger/20 rounded-lg px-3 py-2 text-xs text-danger font-semibold text-center">
+              ⚠ This cannot be undone. Confirm all stats are saved.
+            </div>
 
             <div className="flex gap-3">
               <button
@@ -795,7 +967,7 @@ export default function AdminPage() {
               </button>
               <button
                 onClick={confirmFinalizeScoring}
-                className="flex-1 rounded-lg bg-primary text-background py-2.5 text-sm font-semibold hover:bg-primary-hover transition-colors"
+                className="flex-1 rounded-lg bg-primary text-white py-2.5 text-sm font-semibold hover:bg-primary-hover transition-colors"
               >
                 Yes, Finalize
               </button>

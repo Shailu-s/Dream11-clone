@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { ROLE_ORDER, ROLE_LABELS } from "@/lib/utils";
 
 interface PlayerInfo {
   id: string;
@@ -16,6 +17,7 @@ interface TeamPlayer {
   isCaptain: boolean;
   isViceCaptain: boolean;
   player: PlayerInfo | null;
+  fantasyPoints: number;
 }
 
 interface EntryDetail {
@@ -33,31 +35,46 @@ interface EntryDetail {
   };
 }
 
-const ROLE_ORDER = ["WK", "BAT", "AR", "BOWL"];
-
 export default function EntryDetailPage() {
   const { id: contestId, entryId } = useParams();
   const router = useRouter();
   const [entry, setEntry] = useState<EntryDetail | null>(null);
   const [isOwner, setIsOwner] = useState(false);
+  const [teamHidden, setTeamHidden] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetch(`/api/contests/${contestId}/entry/${entryId}`)
+  function loadEntry() {
+    return fetch(`/api/contests/${contestId}/entry/${entryId}`)
       .then((r) => r.json())
       .then((data) => {
         setEntry(data.entry);
         setIsOwner(data.isOwner);
+        setTeamHidden(data.teamHidden ?? false);
         setLoading(false);
       });
+  }
+
+  useEffect(() => {
+    loadEntry();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contestId, entryId]);
+
+  // Auto-refresh every 60s during live matches to show updating player points
+  useEffect(() => {
+    if (!entry) return;
+    const matchStarted = entry.contest.match.status !== "UPCOMING" || new Date(entry.contest.match.date) <= new Date();
+    if (!matchStarted || entry.contest.status === "COMPLETED") return;
+    const interval = setInterval(() => loadEntry(), 60_000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entry?.contest.match.status, entry?.contest.status, contestId, entryId]);
 
   if (loading) return <div className="text-muted">Loading...</div>;
   if (!entry) return <div className="text-danger">Team not found</div>;
 
-  const matchUpcoming = entry.contest.match.status === "UPCOMING";
+  const matchStarted = new Date(entry.contest.match.date) <= new Date();
   const contestOpen = entry.contest.status === "OPEN";
-  const canEdit = isOwner && matchUpcoming && contestOpen;
+  const canEdit = isOwner && !matchStarted && contestOpen;
 
   const captain = entry.team.find((p) => p.isCaptain);
   const vc = entry.team.find((p) => p.isViceCaptain);
@@ -68,12 +85,16 @@ export default function EntryDetailPage() {
     players: entry.team.filter((p) => p.player?.role === role),
   })).filter((g) => g.players.length > 0);
 
-  const roleLabel: Record<string, string> = {
-    WK: "Wicket Keeper",
-    BAT: "Batters",
-    AR: "All Rounders",
-    BOWL: "Bowlers",
-  };
+
+  // Calculate effective points for a player (base * multiplier)
+  function getEffectivePoints(p: TeamPlayer): number {
+    const base = p.fantasyPoints;
+    if (p.isCaptain) return base * 2;
+    if (p.isViceCaptain) return base * 1.5;
+    return base;
+  }
+
+  const hasAnyPoints = entry.team.some((p) => p.fantasyPoints > 0);
 
   return (
     <div className="space-y-4">
@@ -96,10 +117,10 @@ export default function EntryDetailPage() {
           )}
         </div>
 
-        {entry.totalPoints > 0 && (
+        {(entry.totalPoints > 0 || hasAnyPoints) && (
           <div className="flex gap-4 mt-3 pt-3 border-t border-border">
             <div>
-              <div className="text-xs text-muted">Points</div>
+              <div className="text-xs text-muted">Total Points</div>
               <div className="font-bold text-primary">{entry.totalPoints.toFixed(1)}</div>
             </div>
             {entry.prizeWon > 0 && (
@@ -108,26 +129,45 @@ export default function EntryDetailPage() {
                 <div className="font-bold text-success">+{entry.prizeWon.toFixed(0)} vINR</div>
               </div>
             )}
+            {matchStarted && entry.contest.status !== "COMPLETED" && (
+              <div className="ml-auto flex items-center gap-1 text-xs text-danger">
+                <span className="w-1.5 h-1.5 rounded-full bg-danger animate-pulse" />
+                Updating
+              </div>
+            )}
           </div>
         )}
 
         {canEdit && (
           <button
             onClick={() => router.push(`/contests/${contestId}/team?editEntryId=${entryId}`)}
-            className="mt-3 w-full bg-primary text-background font-semibold rounded-lg py-2 text-sm hover:bg-primary-hover transition-colors"
+            className="mt-3 w-full bg-primary text-white font-semibold rounded-lg py-2 text-sm hover:bg-primary-hover transition-colors"
           >
             Edit Team
           </button>
         )}
       </div>
 
-      {/* C/VC callout */}
+      {/* Team hidden before match starts */}
+      {teamHidden && (
+        <div className="bg-card border border-border rounded-xl p-6 text-center text-muted">
+          <div className="text-2xl mb-2">🔒</div>
+          <div className="font-semibold text-foreground mb-1">Team locked until match starts</div>
+          <div className="text-sm">You can&apos;t see other players&apos; teams before the match begins.</div>
+        </div>
+      )}
+
+      {/* C/VC callout with points */}
+      {!teamHidden && (
       <div className="grid grid-cols-2 gap-3">
         {captain?.player && (
           <div className="bg-primary/10 border border-primary/30 rounded-xl p-3 text-center">
             <div className="text-xs text-primary font-semibold mb-1">CAPTAIN (2x)</div>
             <div className="font-bold text-sm">{captain.player.name}</div>
             <div className="text-xs text-muted">{captain.player.team} · {captain.player.role}</div>
+            {(hasAnyPoints || matchStarted) && (
+              <div className="mt-1.5 text-sm font-bold text-primary">{getEffectivePoints(captain).toFixed(1)} pts</div>
+            )}
           </div>
         )}
         {vc?.player && (
@@ -135,45 +175,73 @@ export default function EntryDetailPage() {
             <div className="text-xs text-secondary font-semibold mb-1">VICE CAPTAIN (1.5x)</div>
             <div className="font-bold text-sm">{vc.player.name}</div>
             <div className="text-xs text-muted">{vc.player.team} · {vc.player.role}</div>
+            {(hasAnyPoints || matchStarted) && (
+              <div className="mt-1.5 text-sm font-bold text-secondary">{getEffectivePoints(vc).toFixed(1)} pts</div>
+            )}
           </div>
         )}
       </div>
+      )}
 
-      {/* Players by role */}
-      {byRole.map(({ role, players }) => (
+      {/* Players by role — with individual points */}
+      {!teamHidden && byRole.map(({ role, players }) => (
         <div key={role}>
-          <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">
-            {roleLabel[role]} ({players.length})
-          </h2>
+          <div className="flex items-center justify-between mb-2 px-1">
+            <h2 className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">
+              {ROLE_LABELS[role]} ({players.length})
+            </h2>
+            <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">Points</span>
+          </div>
           <div className="space-y-2">
-            {players.map((p) => (
-              <div
-                key={p.playerId}
-                className={`bg-card border rounded-lg px-4 py-3 flex items-center justify-between ${
-                  p.isCaptain
-                    ? "border-primary/50"
-                    : p.isViceCaptain
-                    ? "border-secondary/50"
-                    : "border-border"
-                }`}
-              >
-                <div>
-                  <div className="font-medium text-sm">
-                    {p.player?.name ?? "Unknown"}
-                    {p.isCaptain && (
-                      <span className="ml-2 text-[10px] font-bold bg-primary/20 text-primary px-1.5 py-0.5 rounded">C</span>
-                    )}
-                    {p.isViceCaptain && (
-                      <span className="ml-2 text-[10px] font-bold bg-secondary/20 text-secondary px-1.5 py-0.5 rounded">VC</span>
+            {players.map((p) => {
+              const pts = getEffectivePoints(p);
+              return (
+                <div
+                  key={p.playerId}
+                  className={`bg-card border-2 rounded-2xl px-4 py-3 flex items-center justify-between transition-all ${
+                    p.isCaptain
+                      ? "border-primary/40 bg-primary/5"
+                      : p.isViceCaptain
+                      ? "border-secondary/40 bg-secondary/5"
+                      : "border-border"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <div className={`w-10 h-10 rounded-full bg-muted/20 flex items-center justify-center font-black text-xs border-2 ${
+                        p.isCaptain ? "border-primary text-primary" : p.isViceCaptain ? "border-secondary text-secondary" : "border-border text-muted"
+                      }`}>
+                        {p.player?.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+                      </div>
+                      {p.isCaptain && (
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-white text-[10px] font-black rounded-full flex items-center justify-center ring-2 ring-card shadow-lg shadow-primary/30">C</span>
+                      )}
+                      {p.isViceCaptain && (
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-secondary text-white text-[10px] font-black rounded-full flex items-center justify-center ring-2 ring-card shadow-lg shadow-secondary/30">VC</span>
+                      )}
+                    </div>
+                    <div>
+                      <div className="font-black text-sm group-hover:text-primary transition-colors">
+                        {p.player?.name ?? "Unknown"}
+                      </div>
+                      <div className="text-[10px] text-muted font-bold uppercase tracking-tight">
+                        {p.player?.team} &middot; {p.player?.role}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className={`font-black text-base ${pts > 0 ? "text-success" : pts < 0 ? "text-danger" : "text-muted"}`}>
+                      {pts > 0 ? "+" : ""}{pts.toFixed(1)}
+                    </div>
+                    {(p.isCaptain || p.isViceCaptain) && p.fantasyPoints !== 0 && (
+                      <div className="text-[9px] text-muted font-black uppercase tracking-tighter opacity-70">
+                        {p.fantasyPoints.toFixed(1)} x{p.isCaptain ? "2" : "1.5"}
+                      </div>
                     )}
                   </div>
-                  <div className="text-xs text-muted">{p.player?.team}</div>
                 </div>
-                <div className="text-sm font-semibold text-muted">
-                  {p.player?.creditPrice} Cr
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ))}
@@ -182,7 +250,7 @@ export default function EntryDetailPage() {
         onClick={() => router.back()}
         className="w-full bg-card border border-border text-sm font-semibold rounded-lg py-2.5 hover:bg-card-hover transition-colors"
       >
-        ← Back
+        &larr; Back
       </button>
     </div>
   );

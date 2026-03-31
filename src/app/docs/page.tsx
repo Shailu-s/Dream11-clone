@@ -6,7 +6,7 @@ export default function DocsPage() {
       {/* Nav */}
       <header className="border-b border-border px-6 py-4 flex items-center justify-between max-w-4xl mx-auto">
         <Link href="/" className="text-xl font-bold text-primary">WGF</Link>
-        <Link href="/login" className="text-sm font-semibold bg-primary text-background px-4 py-2 rounded-xl hover:bg-primary-hover transition-colors">
+        <Link href="/login" className="text-sm font-semibold bg-primary text-white px-4 py-2 rounded-xl hover:bg-primary-hover transition-colors">
           Login
         </Link>
       </header>
@@ -199,7 +199,7 @@ export default function DocsPage() {
         <div className="text-center">
           <Link
             href="/login"
-            className="inline-block px-8 py-3.5 bg-primary text-background font-bold rounded-2xl hover:bg-primary-hover transition-all text-base shadow-lg shadow-primary/20"
+            className="inline-block px-8 py-3.5 bg-primary text-white font-bold rounded-2xl hover:bg-primary-hover transition-all text-base shadow-lg shadow-primary/20"
           >
             Start Playing
           </Link>

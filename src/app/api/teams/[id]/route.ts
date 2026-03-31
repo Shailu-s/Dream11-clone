@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { resolvePlayerDetails } from "@/lib/player-utils";
 
 export async function GET(
   req: Request,
@@ -33,16 +34,7 @@ export async function GET(
       isCaptain: boolean;
       isViceCaptain: boolean;
     }>;
-    const playerIds = playerSelections.map((p) => p.playerId);
-    const players = await prisma.player.findMany({
-      where: { id: { in: playerIds } },
-      select: { id: true, name: true, team: true, role: true, creditPrice: true },
-    });
-    const playerMap = new Map(players.map((p) => [p.id, p]));
-    const resolvedPlayers = playerSelections.map((sel) => ({
-      ...sel,
-      player: playerMap.get(sel.playerId) ?? null,
-    }));
+    const resolvedPlayers = await resolvePlayerDetails(playerSelections, team.matchId);
 
     return NextResponse.json({ team: { ...team, players: resolvedPlayers } });
   } catch (err) {

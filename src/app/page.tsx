@@ -22,7 +22,7 @@ export default async function HomePage() {
           </Link>
           <Link
             href="/login"
-            className="text-sm font-semibold bg-primary text-background px-4 py-2 rounded-xl hover:bg-primary-hover transition-colors"
+            className="text-sm font-semibold bg-primary text-white px-4 py-2 rounded-xl hover:bg-primary-hover transition-colors"
           >
             Login
           </Link>
@@ -49,7 +49,7 @@ export default async function HomePage() {
         <div className="flex flex-col sm:flex-row gap-3">
           <Link
             href="/login"
-            className="px-8 py-3.5 bg-primary text-background font-bold rounded-2xl hover:bg-primary-hover transition-all text-base shadow-lg shadow-primary/25"
+            className="px-8 py-3.5 bg-primary text-white font-bold rounded-2xl hover:bg-primary-hover transition-all text-base shadow-lg shadow-primary/25"
           >
             Let&apos;s Play
           </Link>

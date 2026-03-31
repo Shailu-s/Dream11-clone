@@ -178,7 +178,7 @@ export default function MatchTeamBuilderPage() {
         </p>
         <button
           onClick={() => router.push(`/matches/${matchId}`)}
-          className="bg-primary text-background font-semibold rounded-lg px-6 py-2.5 hover:bg-primary-hover transition-colors"
+          className="bg-primary text-white font-semibold rounded-lg px-6 py-2.5 hover:bg-primary-hover transition-colors"
         >
           Back to Match
         </button>
@@ -218,7 +218,7 @@ export default function MatchTeamBuilderPage() {
                   <button
                     onClick={() => setCaptain(player.id)}
                     className={`w-10 h-10 rounded-full text-xs font-bold border-2 transition-colors ${
-                      sel.isCaptain ? "bg-primary border-primary text-background" : "border-border text-muted hover:border-primary"
+                      sel.isCaptain ? "bg-primary border-primary text-white" : "border-border text-muted hover:border-primary"
                     }`}
                   >C</button>
                   <button
@@ -245,7 +245,7 @@ export default function MatchTeamBuilderPage() {
           <button
             onClick={handleSave}
             disabled={!canSave || submitting}
-            className="flex-1 bg-primary text-background font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
+            className="flex-1 bg-primary text-white font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
           >
             {submitting ? "Saving..." : editTeamId ? "Update Team" : "Save Team"}
           </button>
@@ -341,7 +341,7 @@ export default function MatchTeamBuilderPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold">{player.creditPrice} Cr</span>
-                  <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? "bg-primary border-primary text-background" : "border-border"}`}>
+                  <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? "bg-primary border-primary text-white" : "border-border"}`}>
                     {isSelected && (
                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -364,7 +364,7 @@ export default function MatchTeamBuilderPage() {
         <button
           onClick={() => setStep("captain")}
           disabled={!canProceed}
-          className="w-full bg-primary text-background font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
+          className="w-full bg-primary text-white font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
         >
           {selections.length === 11
             ? roleErrors.length > 0

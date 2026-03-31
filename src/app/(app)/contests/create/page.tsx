@@ -222,7 +222,7 @@ export default function CreateContestPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-primary text-background font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
+          className="w-full bg-primary text-white font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
         >
           {loading ? "Creating..." : "Create Contest"}
         </button>

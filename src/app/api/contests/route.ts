@@ -15,8 +15,15 @@ export async function GET(req: Request) {
 
   const contests = await prisma.contest.findMany({
     where,
-    include: {
-      match: { select: { team1: true, team2: true, date: true, venue: true } },
+    select: {
+      id: true,
+      name: true,
+      entryFee: true,
+      prizePool: true,
+      maxParticipants: true,
+      inviteCode: true,
+      status: true,
+      match: { select: { id: true, team1: true, team2: true, date: true, venue: true } },
       creator: { select: { username: true } },
       _count: { select: { entries: true } },
     },

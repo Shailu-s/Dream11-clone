@@ -200,7 +200,8 @@ export async function PUT(req: Request) {
 
     return NextResponse.json({ message: "Scoring complete, prizes distributed" });
   } catch (e) {
-    console.error(e);
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    console.error("[finalize scoring]", e);
+    const msg = e instanceof Error ? e.message : "Server error";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

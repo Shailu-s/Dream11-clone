@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
-const SAVED_TEAMS_KEY = "stars11_saved_teams";
+interface SavedTeam {
+  id: string;
+  teamName: string;
+  players: Array<{ playerId: string; isCaptain: boolean; isViceCaptain: boolean }>;
+}
 
 interface Player {
   id: string;
@@ -11,6 +15,7 @@ interface Player {
   team: string;
   role: string;
   creditPrice: number;
+  isInPlayingXI?: boolean;
 }
 
 interface Selection {
@@ -36,7 +41,8 @@ export default function TeamSelectionPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [selections, setSelections] = useState<Selection[]>([]);
   const [teamName, setTeamName] = useState("");
-  const [step, setStep] = useState<"select" | "captain">("select");
+  const [step, setStep] = useState<"pick" | "select" | "captain">("pick");
+  const [savedTeams, setSavedTeams] = useState<SavedTeam[]>([]);
   const [filterRole, setFilterRole] = useState<string>("ALL");
   const [filterTeam, setFilterTeam] = useState<string>("ALL");
   const [loading, setLoading] = useState(true);
@@ -52,11 +58,18 @@ export default function TeamSelectionPage() {
       const contestData = await contestRes.json();
       setContest(contestData.contest);
 
-      const playersRes = await fetch(`/api/players?matchId=${contestData.contest.match.id}`);
+      const matchId = contestData.contest.match.id;
+      const [playersRes, teamsRes] = await Promise.all([
+        fetch(`/api/players?matchId=${matchId}`),
+        fetch(`/api/teams?matchId=${matchId}`),
+      ]);
       const playersData = await playersRes.json();
+      const teamsData = await teamsRes.json();
       setPlayers(playersData.players || []);
+      const teams: SavedTeam[] = teamsData.teams || [];
+      setSavedTeams(teams);
 
-      // If editing an existing contest entry, load it
+      // If editing an existing entry, skip straight to select
       if (editEntryId) {
         try {
           const entryRes = await fetch(`/api/contests/${id}/entry/${editEntryId}`);
@@ -64,44 +77,18 @@ export default function TeamSelectionPage() {
           if (entryData.entry) {
             setSelections(entryData.entry.players as Array<{ playerId: string; isCaptain: boolean; isViceCaptain: boolean }>);
             setTeamName(entryData.entry.teamName || "");
+            setStep("select");
             setLoading(false);
             return;
           }
-        } catch {
-          // fall through to draft
-        }
+        } catch { /* fall through */ }
       }
 
-      // If coming from a saved team, load it
-      if (savedTeamId) {
-        try {
-          const raw = localStorage.getItem(SAVED_TEAMS_KEY);
-          if (raw) {
-            const allTeams = JSON.parse(raw);
-            const found = allTeams.find((t: { id: string }) => t.id === savedTeamId);
-            if (found) {
-              setSelections(found.players || []);
-              setTeamName(found.teamName || "");
-              setLoading(false);
-              return;
-            }
-          }
-        } catch {
-          // ignore
-        }
+      // If no saved teams, skip straight to select
+      if (teams.length === 0) {
+        setStep("select");
       }
-
-      // Otherwise restore draft from localStorage
-      try {
-        const saved = localStorage.getItem(draftKey);
-        if (saved) {
-          const { selections: savedSelections, teamName: savedName } = JSON.parse(saved);
-          setSelections(savedSelections || []);
-          if (savedName) setTeamName(savedName);
-        }
-      } catch {
-        // ignore
-      }
+      // else stay on "pick" step to show saved teams
 
       setLoading(false);
     }
@@ -251,6 +238,47 @@ export default function TeamSelectionPage() {
   }
   const canProceed = selections.length === 11 && roleErrors.length === 0 && teamName.trim().length > 0;
 
+  if (step === "pick") {
+    return (
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-xl font-bold">Join Contest</h1>
+          <p className="text-sm text-muted mt-1">{contest.match.team1} vs {contest.match.team2}</p>
+        </div>
+
+        <div>
+          <h2 className="text-sm font-semibold text-muted uppercase tracking-wide mb-2">Your Saved Teams</h2>
+          <div className="space-y-2">
+            {savedTeams.map((team) => (
+              <div
+                key={team.id}
+                onClick={() => {
+                  setSelections(team.players);
+                  setTeamName(team.teamName);
+                  setStep("captain");
+                }}
+                className="bg-card border border-border rounded-xl p-4 flex items-center justify-between cursor-pointer hover:bg-card-hover hover:border-primary/50 transition-colors"
+              >
+                <div>
+                  <div className="font-semibold">{team.teamName}</div>
+                  <div className="text-xs text-muted mt-0.5">{team.players.length} players selected</div>
+                </div>
+                <span className="text-xs text-primary font-semibold">Use this &rarr;</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <button
+          onClick={() => setStep("select")}
+          className="w-full bg-card border border-border font-semibold rounded-lg py-2.5 text-sm hover:bg-card-hover transition-colors"
+        >
+          + Build a New Team
+        </button>
+      </div>
+    );
+  }
+
   if (step === "captain") {
     return (
       <div>
@@ -288,7 +316,7 @@ export default function TeamSelectionPage() {
                     onClick={() => setCaptain(player.id)}
                     className={`w-10 h-10 rounded-full text-xs font-bold border-2 transition-colors ${
                       sel.isCaptain
-                        ? "bg-primary border-primary text-background"
+                        ? "bg-primary border-primary text-white"
                         : "border-border text-muted hover:border-primary"
                     }`}
                   >
@@ -322,7 +350,7 @@ export default function TeamSelectionPage() {
           <button
             onClick={handleSubmit}
             disabled={submitting}
-            className="flex-1 bg-primary text-background font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
+            className="flex-1 bg-primary text-white font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
           >
             {submitting
               ? (editEntryId ? "Updating..." : "Submitting...")
@@ -450,10 +478,10 @@ export default function TeamSelectionPage() {
           const isBlocked = !isSelected && blockReason !== null;
 
           return (
-            <button
+            <div
               key={player.id}
               onClick={() => togglePlayer(player.id)}
-              className={`w-full text-left bg-card rounded-lg p-3 border transition-colors ${
+              className={`w-full text-left bg-card rounded-lg p-3 border transition-colors cursor-pointer ${
                 isSelected
                   ? "border-primary bg-primary/10"
                   : isBlocked
@@ -462,18 +490,35 @@ export default function TeamSelectionPage() {
               }`}
             >
               <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-medium text-sm">{player.name}</div>
-                  <div className="text-xs text-muted">
-                    {player.team} &middot; {player.role}
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="w-10 h-10 rounded-full bg-background border border-border flex items-center justify-center text-[10px] font-bold text-muted uppercase">
+                      {player.role}
+                    </div>
+                    {player.isInPlayingXI && (
+                      <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-success border-2 border-card shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
+                    )}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium text-sm">{player.name}</div>
+                      {player.isInPlayingXI && (
+                        <span className="text-[9px] font-bold text-success uppercase bg-success/10 px-1 rounded border border-success/20">
+                          Playing
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted">
+                      {player.team} &middot; {player.role}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold">{player.creditPrice} Cr</span>
-                  <span
+                  <div
                     className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
                       isSelected
-                        ? "bg-primary border-primary text-background"
+                        ? "bg-primary border-primary text-white"
                         : "border-border"
                     }`}
                   >
@@ -486,10 +531,10 @@ export default function TeamSelectionPage() {
                         />
                       </svg>
                     )}
-                  </span>
+                  </div>
                 </div>
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
@@ -504,7 +549,7 @@ export default function TeamSelectionPage() {
         <button
           onClick={() => setStep("captain")}
           disabled={!canProceed}
-          className="w-full bg-primary text-background font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
+          className="w-full bg-primary text-white font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
         >
           {selections.length === 11
             ? roleErrors.length > 0

@@ -250,7 +250,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading || !email}
-                className="w-full bg-primary text-background font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
+                className="w-full bg-primary text-white font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
               >
                 {loading ? "Checking..." : "Continue"}
               </button>
@@ -275,7 +275,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading || !password}
-                className="w-full bg-primary text-background font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors mb-3"
+                className="w-full bg-primary text-white font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors mb-3"
               >
                 {loading ? "Logging in..." : "Login"}
               </button>
@@ -318,7 +318,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading || otp.length < 6}
-                className="w-full bg-primary text-background font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
+                className="w-full bg-primary text-white font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
               >
                 {loading ? "Verifying..." : "Verify OTP"}
               </button>
@@ -374,7 +374,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading || username.length < 3 || password.length < 6}
-                className="w-full bg-primary text-background font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
+                className="w-full bg-primary text-white font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
               >
                 {loading ? "Creating account..." : "Create Account"}
               </button>
@@ -400,7 +400,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading || otp.length < 6}
-                className="w-full bg-primary text-background font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
+                className="w-full bg-primary text-white font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
               >
                 {loading ? "Verifying..." : "Verify OTP"}
               </button>
@@ -425,7 +425,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading || newPassword.length < 6}
-                className="w-full bg-primary text-background font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
+                className="w-full bg-primary text-white font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
               >
                 {loading ? "Resetting..." : "Reset Password"}
               </button>

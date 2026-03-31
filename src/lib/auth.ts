@@ -38,15 +38,15 @@ export async function sendOTP(email: string): Promise<void> {
   );
 
   await transporter.sendMail({
-    from: '"Stars11" <srajawat5868@gmail.com>',
+    from: '"WGF" <srajawat5868@gmail.com>',
     to: email,
-    subject: "Your Stars11 OTP",
-    text: `Your Stars11 verification code is: ${code}\n\nThis code expires in 10 minutes.`,
+    subject: "Your WGF OTP",
+    text: `Your WGF verification code is: ${code}\n\nThis code expires in 10 minutes.`,
     html: `
       <div style="font-family:sans-serif;max-width:400px;margin:auto">
-        <h2 style="color:#22c55e">Stars11</h2>
+        <h2 style="color:#c8702a">WGF</h2>
         <p>Your verification code is:</p>
-        <div style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#22c55e;padding:16px 0">${code}</div>
+        <div style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#c8702a;padding:16px 0">${code}</div>
         <p style="color:#888;font-size:13px">Expires in 10 minutes. Do not share this code.</p>
       </div>
     `,

@@ -346,6 +346,9 @@ async function seed() {
   await prisma.playerMatchStats.deleteMany({});
   await prisma.contestEntry.deleteMany({});
   await prisma.contest.deleteMany({});
+  // Saved teams store player selections as JSON that becomes stale whenever we re-seed players.
+  // Delete saved teams for this season before deleting matches/players.
+  await prisma.savedTeam.deleteMany({ where: { match: { season: SEASON } } });
   await prisma.match.deleteMany({ where: { season: SEASON } });
   await prisma.player.deleteMany({ where: { season: SEASON } });
 
