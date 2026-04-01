@@ -33,9 +33,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid data" }, { status: 400 });
     }
 
+    // Fetch existing XI/impact flags for this match (set by admin via Playing XI tab)
+    const existingRows = await prisma.playerMatchStats.findMany({
+      where: { matchId },
+      select: { playerId: true, isInPlayingXI: true, isImpactPlayer: true },
+    });
+    const xiMap = new Map(existingRows.map(r => [r.playerId, { isInPlayingXI: r.isInPlayingXI, isImpactPlayer: r.isImpactPlayer }]));
+
     // Save player stats and calculate fantasy points
     for (const stat of playerStats) {
-      const fantasyPoints = calculateFantasyPoints(stat);
+      const xi = xiMap.get(stat.playerId);
+      const fantasyPoints = calculateFantasyPoints({
+        ...stat,
+        isInPlayingXI: xi?.isInPlayingXI ?? false,
+        isImpactPlayer: xi?.isImpactPlayer ?? false,
+      });
 
       await prisma.playerMatchStats.upsert({
         where: {

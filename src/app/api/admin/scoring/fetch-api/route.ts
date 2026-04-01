@@ -70,8 +70,21 @@ export async function GET(req: Request) {
     const autoSave = searchParams.get("autoSave") === "true";
     if (autoSave && playerStats.length > 0) {
       console.log(`Auto-saving stats for match ${matchId}`);
+
+      // Fetch existing XI/impact flags for this match
+      const existingRows = await prisma.playerMatchStats.findMany({
+        where: { matchId },
+        select: { playerId: true, isInPlayingXI: true, isImpactPlayer: true },
+      });
+      const xiMap = new Map(existingRows.map(r => [r.playerId, { isInPlayingXI: r.isInPlayingXI, isImpactPlayer: r.isImpactPlayer }]));
+
       for (const stat of playerStats) {
-        const fantasyPoints = calculateFantasyPoints(stat);
+        const xi = xiMap.get(stat.playerId);
+        const fantasyPoints = calculateFantasyPoints({
+          ...stat,
+          isInPlayingXI: xi?.isInPlayingXI ?? false,
+          isImpactPlayer: xi?.isImpactPlayer ?? false,
+        });
         await prisma.playerMatchStats.upsert({
           where: {
             playerId_matchId: { playerId: stat.playerId, matchId },
@@ -83,7 +96,10 @@ export async function GET(req: Request) {
 
       // Recalculate points for all contest entries
       const statsMap = new Map<string, number>();
-      playerStats.forEach(s => statsMap.set(s.playerId, calculateFantasyPoints(s)));
+      playerStats.forEach(s => {
+        const xi = xiMap.get(s.playerId);
+        statsMap.set(s.playerId, calculateFantasyPoints({ ...s, isInPlayingXI: xi?.isInPlayingXI ?? false, isImpactPlayer: xi?.isImpactPlayer ?? false }));
+      });
 
       const contests = await prisma.contest.findMany({
         where: { matchId, status: { in: ["OPEN", "LOCKED"] } },

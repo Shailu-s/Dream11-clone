@@ -125,8 +125,20 @@ export async function GET(req: Request) {
         statsCount = playerStats.length;
 
         // 5f. Upsert all player stats + recalculate fantasy points
+        // Fetch existing XI/impact flags (set by admin before match)
+        const existingRows = await prisma.playerMatchStats.findMany({
+          where: { matchId: match.id },
+          select: { playerId: true, isInPlayingXI: true, isImpactPlayer: true },
+        });
+        const xiMap = new Map(existingRows.map(r => [r.playerId, { isInPlayingXI: r.isInPlayingXI, isImpactPlayer: r.isImpactPlayer }]));
+
         for (const stat of playerStats) {
-          const fantasyPoints = calculateFantasyPoints(stat);
+          const xi = xiMap.get(stat.playerId);
+          const fantasyPoints = calculateFantasyPoints({
+            ...stat,
+            isInPlayingXI: xi?.isInPlayingXI ?? false,
+            isImpactPlayer: xi?.isImpactPlayer ?? false,
+          });
           await prisma.playerMatchStats.upsert({
             where: { playerId_matchId: { playerId: stat.playerId, matchId: match.id } },
             update: { ...stat, fantasyPoints, matchId: undefined, playerId: undefined },

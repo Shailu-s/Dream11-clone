@@ -16,6 +16,8 @@ interface Player {
   role: string;
   creditPrice: number;
   isInPlayingXI?: boolean;
+  isProbableXI?: boolean;
+  isImpactPlayer?: boolean;
 }
 
 interface Selection {
@@ -511,8 +513,8 @@ export default function TeamSelectionPage() {
                     <div className="w-10 h-10 rounded-full bg-background border border-border flex items-center justify-center text-[10px] font-bold text-muted uppercase">
                       {player.role}
                     </div>
-                    {player.isInPlayingXI && (
-                      <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-success border-2 border-card shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
+                    {(player.isInPlayingXI || player.isProbableXI || player.isImpactPlayer) && (
+                      <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-card ${player.isInPlayingXI ? "bg-success shadow-[0_0_8px_rgba(34,197,94,0.6)]" : player.isImpactPlayer ? "bg-blue-400" : "bg-amber-500"}`}></span>
                     )}
                   </div>
                   <div>
@@ -521,6 +523,16 @@ export default function TeamSelectionPage() {
                       {player.isInPlayingXI && (
                         <span className="text-[9px] font-bold text-success uppercase bg-success/10 px-1 rounded border border-success/20">
                           Playing
+                        </span>
+                      )}
+                      {player.isProbableXI && !player.isInPlayingXI && (
+                        <span className="text-[9px] font-bold text-amber-500 uppercase bg-amber-500/10 px-1 rounded border border-amber-500/20">
+                          Probable
+                        </span>
+                      )}
+                      {player.isImpactPlayer && (
+                        <span className="text-[9px] font-bold text-blue-400 uppercase bg-blue-500/10 px-1 rounded border border-blue-500/20">
+                          Impact
                         </span>
                       )}
                     </div>

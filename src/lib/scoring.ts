@@ -14,8 +14,20 @@ export function calculateFantasyPoints(stats: {
   lbwBowled: number;
   didBat: boolean;
   isOut: boolean;
+  isInPlayingXI?: boolean;
+  isImpactPlayer?: boolean;
 }): number {
   let points = 0;
+
+  // Playing XI appearance bonus (+2)
+  if (stats.isInPlayingXI) {
+    points += 2;
+  }
+
+  // Impact player bonus (+2) — only if they actually batted or bowled (not just fielded)
+  if (stats.isImpactPlayer && (stats.didBat || stats.oversBowled > 0)) {
+    points += 2;
+  }
 
   // Batting points
   points += stats.runs * 1;
