@@ -173,7 +173,7 @@ Then hit the cron manually via Vercel dashboard → Cron Jobs → Run Now.
 
 ### Need to manually trigger cron
 ```bash
-curl -X GET https://your-prod-url.vercel.app/api/jobs/fetch-scores \
+curl -X GET https://wgf-gamma.vercel.app/api/jobs/fetch-scores \
   -H "Authorization: Bearer stars11_cron_secret_2026"
 ```
 

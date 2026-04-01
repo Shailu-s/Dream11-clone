@@ -101,7 +101,8 @@ model Match {
   venue     String
   status    MatchStatus @default(UPCOMING)
   season    String      @default("IPL 2026")
-  cricApiMatchId String?  @unique
+  cricApiMatchId       String?  @unique
+  playingXIConfirmed   Boolean  @default(false)
   createdAt DateTime    @default(now())
 
   contests         Contest[]
@@ -235,6 +236,8 @@ model PlayerMatchStats {
   didBat          Boolean @default(false)
   isOut           Boolean @default(false)
   isInPlayingXI   Boolean @default(false)
+  isProbableXI    Boolean @default(false)
+  isImpactPlayer  Boolean @default(false)
   fantasyPoints   Float   @default(0)
   createdAt       DateTime @default(now())
 

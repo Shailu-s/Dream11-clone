@@ -29,11 +29,13 @@ export async function GET(req: Request) {
     orderBy: [{ role: "asc" }, { creditPrice: "desc" }],
   }) as any[];
 
-  // Transform to include isInPlayingXI as a top-level property
+  // Transform to include playing XI fields as top-level properties
   const result = players.map(p => ({
     ...p,
     isInPlayingXI: p.matchStats?.[0]?.isInPlayingXI ?? false,
-    matchStats: undefined // remove extra nesting
+    isProbableXI: p.matchStats?.[0]?.isProbableXI ?? false,
+    isImpactPlayer: p.matchStats?.[0]?.isImpactPlayer ?? false,
+    matchStats: undefined,
   }));
 
   return NextResponse.json({ players: result });

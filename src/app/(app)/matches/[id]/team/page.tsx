@@ -10,6 +10,8 @@ interface Player {
   role: string;
   creditPrice: number;
   isInPlayingXI?: boolean;
+  isProbableXI?: boolean;
+  isImpactPlayer?: boolean;
 }
 
 interface Selection {
@@ -28,7 +30,7 @@ export default function MatchTeamBuilderPage() {
   const editTeamId = searchParams.get("editTeamId");
   const matchId = id as string;
 
-  const [matchInfo, setMatchInfo] = useState<{ team1: string; team2: string } | null>(null);
+  const [matchInfo, setMatchInfo] = useState<{ team1: string; team2: string; playingXIConfirmed: boolean } | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [selections, setSelections] = useState<Selection[]>([]);
   const [teamName, setTeamName] = useState("");
@@ -52,7 +54,7 @@ export default function MatchTeamBuilderPage() {
 
       const match = (matchData.matches || []).find((m: { id: string }) => m.id === matchId);
       if (!match) { setLoading(false); return; }
-      setMatchInfo({ team1: match.team1, team2: match.team2 });
+      setMatchInfo({ team1: match.team1, team2: match.team2, playingXIConfirmed: match.playingXIConfirmed ?? false });
       setPlayers(playersData.players || []);
 
       // If editing an existing saved team, load it
@@ -339,9 +341,19 @@ export default function MatchTeamBuilderPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <div className="font-medium text-sm">{player.name}</div>
-                    {player.isInPlayingXI && (
+                    {player.isInPlayingXI && matchInfo?.playingXIConfirmed && (
                       <span className="bg-success/20 text-success text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest border border-success/30">
-                        Playing
+                        Playing XI
+                      </span>
+                    )}
+                    {player.isProbableXI && !matchInfo?.playingXIConfirmed && (
+                      <span className="bg-amber-500/20 text-amber-500 text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest border border-amber-500/30">
+                        Probable XI
+                      </span>
+                    )}
+                    {player.isImpactPlayer && (
+                      <span className="bg-blue-500/20 text-blue-400 text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest border border-blue-500/30">
+                        Impact
                       </span>
                     )}
                   </div>

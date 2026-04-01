@@ -27,24 +27,22 @@ interface PlayerSeed {
 }
 
 // Credit prices based on player reputation, auction price, and recent form
+// This is the source of truth — matches prod DB exactly
 const SQUADS: Record<string, PlayerSeed[]> = {
   CSK: [
-    // Batters
     { name: "Ruturaj Gaikwad", role: "BAT", creditPrice: 9.5 },
     { name: "MS Dhoni", role: "WK", creditPrice: 8.5 },
-    { name: "Sanju Samson", role: "WK", creditPrice: 9.5 },
     { name: "Dewald Brevis", role: "BAT", creditPrice: 8.0 },
     { name: "Ayush Mhatre", role: "BAT", creditPrice: 7.0 },
     { name: "Kartik Sharma", role: "BAT", creditPrice: 6.5 },
     { name: "Sarfaraz Khan", role: "BAT", creditPrice: 7.5 },
-    { name: "Urvil Patel", role: "BAT", creditPrice: 6.5 },
-    // All-rounders
+    { name: "Urvil Patel", role: "WK", creditPrice: 6.5 },
     { name: "Jamie Overton", role: "AR", creditPrice: 7.5 },
     { name: "Ramakrishna Ghosh", role: "AR", creditPrice: 6.0 },
     { name: "Prashant Veer", role: "AR", creditPrice: 7.0 },
     { name: "Matthew Short", role: "AR", creditPrice: 7.5 },
     { name: "Shivam Dube", role: "AR", creditPrice: 8.5 },
-    // Bowlers
+    { name: "Gurjapneet Singh", role: "BOWL", creditPrice: 6.0 },
     { name: "Khaleel Ahmed", role: "BOWL", creditPrice: 8.0 },
     { name: "Noor Ahmad", role: "BOWL", creditPrice: 7.5 },
     { name: "Anshul Kamboj", role: "BOWL", creditPrice: 6.5 },
@@ -52,9 +50,12 @@ const SQUADS: Record<string, PlayerSeed[]> = {
     { name: "Rahul Chahar", role: "BOWL", creditPrice: 7.5 },
     { name: "Matt Henry", role: "BOWL", creditPrice: 8.0 },
     { name: "Spencer Johnson", role: "BOWL", creditPrice: 7.5 },
+    { name: "Shreyas Gopal", role: "BOWL", creditPrice: 7.0 },
+    { name: "Nathan Ellis", role: "BOWL", creditPrice: 7.0 },
+    { name: "Aman Khan", role: "BOWL", creditPrice: 6.0 },
+    { name: "Zakary Foulkes", role: "BOWL", creditPrice: 6.0 },
   ],
   DC: [
-    // Batters
     { name: "KL Rahul", role: "WK", creditPrice: 10.0 },
     { name: "Karun Nair", role: "BAT", creditPrice: 8.0 },
     { name: "David Miller", role: "BAT", creditPrice: 8.5 },
@@ -62,12 +63,10 @@ const SQUADS: Record<string, PlayerSeed[]> = {
     { name: "Abishek Porel", role: "WK", creditPrice: 7.0 },
     { name: "Tristan Stubbs", role: "BAT", creditPrice: 7.5 },
     { name: "Prithvi Shaw", role: "BAT", creditPrice: 7.0 },
-    // All-rounders
     { name: "Axar Patel", role: "AR", creditPrice: 9.0 },
     { name: "Sameer Rizvi", role: "AR", creditPrice: 7.0 },
     { name: "Ashutosh Sharma", role: "AR", creditPrice: 6.5 },
     { name: "Nitish Rana", role: "AR", creditPrice: 7.5 },
-    // Bowlers
     { name: "Mitchell Starc", role: "BOWL", creditPrice: 10.0 },
     { name: "T Natarajan", role: "BOWL", creditPrice: 7.5 },
     { name: "Mukesh Kumar", role: "BOWL", creditPrice: 7.0 },
@@ -75,62 +74,64 @@ const SQUADS: Record<string, PlayerSeed[]> = {
     { name: "Lungisani Ngidi", role: "BOWL", creditPrice: 7.5 },
   ],
   GT: [
-    // Batters
     { name: "Shubman Gill", role: "BAT", creditPrice: 10.0 },
     { name: "Jos Buttler", role: "WK", creditPrice: 9.5 },
     { name: "Kumar Kushagra", role: "WK", creditPrice: 6.5 },
     { name: "Anuj Rawat", role: "WK", creditPrice: 6.5 },
     { name: "Glenn Phillips", role: "BAT", creditPrice: 8.0 },
     { name: "Sai Sudharsan", role: "BAT", creditPrice: 8.0 },
-    // All-rounders
     { name: "Washington Sundar", role: "AR", creditPrice: 7.5 },
     { name: "Rahul Tewatia", role: "AR", creditPrice: 7.5 },
     { name: "Shahrukh Khan", role: "AR", creditPrice: 7.0 },
     { name: "Jason Holder", role: "AR", creditPrice: 8.0 },
     { name: "Sai Kishore", role: "AR", creditPrice: 6.5 },
-    // Bowlers
+    { name: "Manav Suthar", role: "AR", creditPrice: 6.5 },
     { name: "Kagiso Rabada", role: "BOWL", creditPrice: 9.5 },
     { name: "Mohammed Siraj", role: "BOWL", creditPrice: 8.5 },
     { name: "Prasidh Krishna", role: "BOWL", creditPrice: 8.0 },
     { name: "Rashid Khan", role: "BOWL", creditPrice: 9.5 },
     { name: "Ishant Sharma", role: "BOWL", creditPrice: 7.0 },
-    { name: "Manav Suthar", role: "BOWL", creditPrice: 6.5 },
+    { name: "Ashok Sharma", role: "BOWL", creditPrice: 6.0 },
   ],
   KKR: [
-    // Batters
     { name: "Ajinkya Rahane", role: "BAT", creditPrice: 8.0 },
     { name: "Rinku Singh", role: "BAT", creditPrice: 8.5 },
+    { name: "Angkrish Raghuvanshi", role: "BAT", creditPrice: 7.0 },
     { name: "Manish Pandey", role: "BAT", creditPrice: 7.0 },
     { name: "Finn Allen", role: "WK", creditPrice: 7.5 },
     { name: "Tim Seifert", role: "WK", creditPrice: 6.5 },
+    { name: "Tejasvi Dahiya", role: "WK", creditPrice: 6.0 },
     { name: "Rahul Tripathi", role: "BAT", creditPrice: 7.5 },
     { name: "Rovman Powell", role: "BAT", creditPrice: 7.5 },
-    // All-rounders
+    { name: "Sarthak Ranjan", role: "BAT", creditPrice: 6.0 },
     { name: "Cameron Green", role: "AR", creditPrice: 9.5 },
     { name: "Rachin Ravindra", role: "AR", creditPrice: 8.0 },
     { name: "Ramandeep Singh", role: "AR", creditPrice: 7.0 },
     { name: "Sunil Narine", role: "AR", creditPrice: 9.0 },
     { name: "Anukul Roy", role: "AR", creditPrice: 6.0 },
-    // Bowlers
+    { name: "Daksh Kamra", role: "AR", creditPrice: 6.0 },
     { name: "Varun Chakaravarthy", role: "BOWL", creditPrice: 8.5 },
     { name: "Matheesha Pathirana", role: "BOWL", creditPrice: 8.5 },
     { name: "Vaibhav Arora", role: "BOWL", creditPrice: 7.0 },
+    { name: "Harshit Rana", role: "BOWL", creditPrice: 7.5 },
+    { name: "Akash Deep", role: "BOWL", creditPrice: 7.5 },
     { name: "Umran Malik", role: "BOWL", creditPrice: 7.5 },
     { name: "Navdeep Saini", role: "BOWL", creditPrice: 7.0 },
+    { name: "Prashant Solanki", role: "BOWL", creditPrice: 6.5 },
+    { name: "Saurabh Dubey", role: "BOWL", creditPrice: 6.0 },
+    { name: "Kartik Tyagi", role: "BOWL", creditPrice: 6.5 },
+    { name: "Blessing Muzarabani", role: "BOWL", creditPrice: 7.0 },
   ],
   LSG: [
-    // Batters
     { name: "Rishabh Pant", role: "WK", creditPrice: 10.0 },
     { name: "Aiden Markram", role: "BAT", creditPrice: 8.0 },
     { name: "Nicholas Pooran", role: "WK", creditPrice: 8.5 },
     { name: "Josh Inglis", role: "WK", creditPrice: 7.5 },
-    // All-rounders
     { name: "Mitchell Marsh", role: "AR", creditPrice: 8.5 },
     { name: "Abdul Samad", role: "AR", creditPrice: 7.0 },
     { name: "Wanindu Hasaranga", role: "AR", creditPrice: 8.5 },
     { name: "Ayush Badoni", role: "AR", creditPrice: 7.5 },
     { name: "Shahbaz Ahmed", role: "AR", creditPrice: 7.0 },
-    // Bowlers
     { name: "Mohammad Shami", role: "BOWL", creditPrice: 9.0 },
     { name: "Avesh Khan", role: "BOWL", creditPrice: 7.5 },
     { name: "Anrich Nortje", role: "BOWL", creditPrice: 8.5 },
@@ -139,60 +140,60 @@ const SQUADS: Record<string, PlayerSeed[]> = {
     { name: "Arjun Tendulkar", role: "BOWL", creditPrice: 6.0 },
   ],
   MI: [
-    // Batters
     { name: "Rohit Sharma", role: "BAT", creditPrice: 10.0 },
     { name: "Suryakumar Yadav", role: "BAT", creditPrice: 10.0 },
     { name: "Tilak Varma", role: "BAT", creditPrice: 8.5 },
     { name: "Quinton de Kock", role: "WK", creditPrice: 9.0 },
     { name: "Robin Minz", role: "WK", creditPrice: 6.5 },
     { name: "Ryan Rickelton", role: "BAT", creditPrice: 7.5 },
-    // All-rounders
     { name: "Hardik Pandya", role: "AR", creditPrice: 9.5 },
     { name: "Naman Dhir", role: "AR", creditPrice: 7.0 },
     { name: "Will Jacks", role: "AR", creditPrice: 8.5 },
     { name: "Shardul Thakur", role: "AR", creditPrice: 7.5 },
     { name: "Mitchell Santner", role: "AR", creditPrice: 7.5 },
     { name: "Corbin Bosch", role: "AR", creditPrice: 7.0 },
-    // Bowlers
     { name: "Jasprit Bumrah", role: "BOWL", creditPrice: 10.5 },
     { name: "Trent Boult", role: "BOWL", creditPrice: 9.0 },
     { name: "Deepak Chahar", role: "BOWL", creditPrice: 8.0 },
     { name: "Allah Ghazanfar", role: "BOWL", creditPrice: 7.0 },
   ],
   PBKS: [
-    // Batters
     { name: "Shreyas Iyer", role: "BAT", creditPrice: 9.5 },
     { name: "Nehal Wadhera", role: "BAT", creditPrice: 7.0 },
     { name: "Prabhsimran Singh", role: "WK", creditPrice: 7.0 },
     { name: "Vishnu Vinod", role: "WK", creditPrice: 6.5 },
     { name: "Shashank Singh", role: "BAT", creditPrice: 7.0 },
-    // All-rounders
+    { name: "Priyansh Arya", role: "BAT", creditPrice: 6.5 },
+    { name: "Suryansh Shedge", role: "BAT", creditPrice: 6.0 },
+    { name: "Harnoor Singh", role: "BAT", creditPrice: 6.0 },
     { name: "Marcus Stoinis", role: "AR", creditPrice: 9.0 },
     { name: "Marco Jansen", role: "AR", creditPrice: 9.0 },
     { name: "Musheer Khan", role: "AR", creditPrice: 7.5 },
     { name: "Harpreet Brar", role: "AR", creditPrice: 7.0 },
     { name: "Azmatullah Omarzai", role: "AR", creditPrice: 7.5 },
-    { name: "Priyansh Arya", role: "AR", creditPrice: 6.5 },
-    // Bowlers
+    { name: "Cooper Connolly", role: "AR", creditPrice: 7.0 },
     { name: "Arshdeep Singh", role: "BOWL", creditPrice: 9.0 },
     { name: "Yuzvendra Chahal", role: "BOWL", creditPrice: 8.5 },
     { name: "Lockie Ferguson", role: "BOWL", creditPrice: 8.5 },
     { name: "Xavier Bartlett", role: "BOWL", creditPrice: 7.5 },
     { name: "Yash Thakur", role: "BOWL", creditPrice: 7.0 },
+    { name: "Vijaykumar Vyshak", role: "BOWL", creditPrice: 7.0 },
+    { name: "Praveen Dubey", role: "BOWL", creditPrice: 6.0 },
+    { name: "Pyla Avinash", role: "BOWL", creditPrice: 6.0 },
+    { name: "Vishal Nishad", role: "BOWL", creditPrice: 6.0 },
+    { name: "Ben Dwarshuis", role: "BOWL", creditPrice: 6.5 },
+    { name: "Mitchell Owen", role: "BAT", creditPrice: 6.5 },
   ],
   RR: [
-    // Batters
     { name: "Yashasvi Jaiswal", role: "BAT", creditPrice: 10.0 },
     { name: "Shimron Hetmyer", role: "BAT", creditPrice: 8.0 },
     { name: "Dhruv Jurel", role: "WK", creditPrice: 7.5 },
     { name: "Vaibhav Suryavanshi", role: "BAT", creditPrice: 7.0 },
     { name: "Shubham Dubey", role: "BAT", creditPrice: 6.5 },
     { name: "Donovan Ferreira", role: "BAT", creditPrice: 7.0 },
-    // All-rounders
     { name: "Riyan Parag", role: "AR", creditPrice: 8.5 },
     { name: "Ravindra Jadeja", role: "AR", creditPrice: 9.0 },
     { name: "Dasun Shanaka", role: "AR", creditPrice: 7.0 },
-    // Bowlers
     { name: "Jofra Archer", role: "BOWL", creditPrice: 9.5 },
     { name: "Tushar Deshpande", role: "BOWL", creditPrice: 7.5 },
     { name: "Ravi Bishnoi", role: "BOWL", creditPrice: 8.0 },
@@ -202,20 +203,17 @@ const SQUADS: Record<string, PlayerSeed[]> = {
     { name: "Kuldeep Sen", role: "BOWL", creditPrice: 6.5 },
   ],
   RCB: [
-    // Batters
     { name: "Virat Kohli", role: "BAT", creditPrice: 10.5 },
     { name: "Rajat Patidar", role: "BAT", creditPrice: 8.5 },
     { name: "Devdutt Padikkal", role: "BAT", creditPrice: 7.5 },
     { name: "Phil Salt", role: "WK", creditPrice: 9.0 },
     { name: "Jitesh Sharma", role: "WK", creditPrice: 7.0 },
-    // All-rounders
     { name: "Krunal Pandya", role: "AR", creditPrice: 8.0 },
     { name: "Tim David", role: "AR", creditPrice: 8.5 },
     { name: "Jacob Bethell", role: "AR", creditPrice: 8.0 },
     { name: "Venkatesh Iyer", role: "AR", creditPrice: 8.5 },
     { name: "Romario Shepherd", role: "AR", creditPrice: 7.0 },
     { name: "Swapnil Singh", role: "AR", creditPrice: 6.0 },
-    // Bowlers
     { name: "Josh Hazlewood", role: "BOWL", creditPrice: 9.0 },
     { name: "Bhuvneshwar Kumar", role: "BOWL", creditPrice: 8.0 },
     { name: "Yash Dayal", role: "BOWL", creditPrice: 7.5 },
@@ -224,18 +222,15 @@ const SQUADS: Record<string, PlayerSeed[]> = {
     { name: "Rasikh Dar", role: "BOWL", creditPrice: 6.5 },
   ],
   SRH: [
-    // Batters
     { name: "Travis Head", role: "BAT", creditPrice: 9.5 },
     { name: "Ishan Kishan", role: "WK", creditPrice: 9.0 },
     { name: "Heinrich Klaasen", role: "WK", creditPrice: 9.5 },
-    // All-rounders
     { name: "Abhishek Sharma", role: "AR", creditPrice: 8.5 },
     { name: "Harshal Patel", role: "AR", creditPrice: 8.0 },
     { name: "Liam Livingstone", role: "AR", creditPrice: 9.0 },
     { name: "Nitish Kumar Reddy", role: "AR", creditPrice: 8.0 },
     { name: "Kamindu Mendis", role: "AR", creditPrice: 7.5 },
     { name: "Brydon Carse", role: "AR", creditPrice: 7.5 },
-    // Bowlers
     { name: "Pat Cummins", role: "BOWL", creditPrice: 10.0 },
     { name: "Jaydev Unadkat", role: "BOWL", creditPrice: 7.0 },
     { name: "Shivam Mavi", role: "BOWL", creditPrice: 7.0 },

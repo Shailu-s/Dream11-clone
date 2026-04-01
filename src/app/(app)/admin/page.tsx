@@ -36,6 +36,7 @@ interface MatchRow {
   date: string;
   venue: string;
   status: "UPCOMING" | "LIVE" | "COMPLETED";
+  playingXIConfirmed: boolean;
   _count: { contests: number };
 }
 
@@ -46,6 +47,8 @@ interface PlayerRow {
   role: string;
   creditPrice: number;
   isInPlayingXI?: boolean;
+  isProbableXI?: boolean;
+  isImpactPlayer?: boolean;
 }
 
 interface PlayerStatForm {
@@ -95,6 +98,7 @@ export default function AdminPage() {
   const [players, setPlayers] = useState<PlayerRow[]>([]);
   const [playerStats, setPlayerStats] = useState<Record<string, PlayerStatForm>>({});
   const [playingXI, setPlayingXI] = useState<Record<string, boolean>>({});
+  const [impactPlayers, setImpactPlayers] = useState<Record<string, boolean>>({});
   const [selectedMatchId, setSelectedMatchId] = useState("");
   const [loading, setLoading] = useState(true);
   const [scoringLoading, setScoringLoading] = useState(false);
@@ -244,12 +248,17 @@ export default function AdminPage() {
       setPlayers(nextPlayers);
       setPlayerStats(nextStats);
 
-      // Initialize playing XI state from fetched players
+      // Initialize playing XI state — confirmed takes priority over probable
       const nextPlayingXI: Record<string, boolean> = {};
+      const nextImpact: Record<string, boolean> = {};
       for (const p of nextPlayers) {
-        nextPlayingXI[p.id] = p.isInPlayingXI ?? false;
+        nextPlayingXI[p.id] = (p.isInPlayingXI || p.isProbableXI) ?? false;
+        // Only load impact state for bench players (not in XI) — ignore DB corruption
+        const isInXI = (p.isInPlayingXI || p.isProbableXI) ?? false;
+        nextImpact[p.id] = isInXI ? false : (p.isImpactPlayer ?? false);
       }
       setPlayingXI(nextPlayingXI);
+      setImpactPlayers(nextImpact);
 
       setScoringLoading(false);
     }
@@ -353,21 +362,27 @@ export default function AdminPage() {
     setMessage(data.message || "Stats saved");
   }
 
-  async function handleSavePlayingXI() {
+  async function handleSavePlayingXI(confirm: boolean) {
     if (!selectedMatchId) return;
 
-    setSubmittingId(`playing-xi-${selectedMatchId}`);
+    const key = confirm ? `playing-xi-confirm-${selectedMatchId}` : `playing-xi-${selectedMatchId}`;
+    setSubmittingId(key);
     setMessage("");
 
-    const payload = Object.entries(playingXI).map(([playerId, isInPlayingXI]) => ({
+    const payload = Object.entries(playingXI).map(([playerId, selected]) => ({
       playerId,
-      isInPlayingXI,
+      selected,
+    }));
+
+    const impactPayload = Object.entries(impactPlayers).map(([playerId, selected]) => ({
+      playerId,
+      selected,
     }));
 
     const res = await fetch("/api/admin/matches/playing-xi", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ matchId: selectedMatchId, playingXIs: payload }),
+      body: JSON.stringify({ matchId: selectedMatchId, playingXIs: payload, impactPlayers: impactPayload, confirm }),
     });
 
     const data = await res.json();
@@ -378,7 +393,7 @@ export default function AdminPage() {
       return;
     }
 
-    setMessage(data.message || "Playing XI updated");
+    setMessage(data.message || "Saved");
   }
 
   async function handleFetchApi() {
@@ -692,21 +707,82 @@ export default function AdminPage() {
                   })}
                 </div>
 
-                {/* Save button — only active when both teams have exactly 11 */}
-                <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between gap-4">
+                {/* Impact Players — bench players who can substitute in */}
+                {bothReady && (
+                  <div className="rounded-xl border border-border bg-card overflow-hidden">
+                    <div className="px-4 py-2.5 border-b border-border bg-background flex items-center gap-2">
+                      <span className="font-bold text-sm">Impact Players</span>
+                      <span className="text-xs text-muted">(bench players only — cannot overlap with Playing XI)</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-0 divide-y md:divide-y-0 md:divide-x divide-border">
+                      {[team1, team2].map((teamName) => {
+                        if (!teamName) return null;
+                        const benchPlayers = players.filter(p => p.team === teamName && !playingXI[p.id]);
+                        return (
+                          <div key={teamName} className="p-3 space-y-1">
+                            <div className="text-xs font-bold text-muted mb-2">{teamName} Bench</div>
+                            {benchPlayers.length === 0 ? (
+                              <div className="text-xs text-muted italic">No bench players</div>
+                            ) : (
+                              benchPlayers.map((player) => {
+                                const isImpact = !!impactPlayers[player.id];
+                                return (
+                                  <label key={player.id} className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 cursor-pointer transition-colors ${isImpact ? "bg-blue-500/10 border border-blue-500/30" : "bg-background/50 border border-transparent hover:border-border"}`}>
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={isImpact}
+                                        onChange={(e) => setImpactPlayers(prev => ({ ...prev, [player.id]: e.target.checked }))}
+                                        className="w-4 h-4 rounded border-border text-blue-500 focus:ring-blue-500"
+                                      />
+                                      <div>
+                                        <div className="text-sm font-semibold">{player.name}</div>
+                                        <div className="text-[10px] text-muted font-bold">{player.role} · {player.creditPrice} Cr</div>
+                                      </div>
+                                    </div>
+                                    {isImpact && (
+                                      <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded px-1.5 py-0.5">IMPACT</span>
+                                    )}
+                                  </label>
+                                );
+                              })
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Save buttons — only active when both teams have exactly 11 */}
+                <div className="rounded-xl border border-border bg-card p-4 space-y-3">
                   <div className="text-sm text-muted">
                     {bothReady
                       ? <span className="text-success font-bold">Both teams ready — 11/11 each</span>
-                      : <span>Select exactly 11 players per team to save ({team1}: {t1Count}/11 · {team2}: {t2Count}/11)</span>
+                      : <span>Select exactly 11 players per team ({team1}: {t1Count}/11 · {team2}: {t2Count}/11)</span>
                     }
                   </div>
-                  <button
-                    onClick={handleSavePlayingXI}
-                    disabled={!bothReady || submittingId === `playing-xi-${selectedMatchId}`}
-                    className="rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-white disabled:opacity-40 whitespace-nowrap"
-                  >
-                    {submittingId === `playing-xi-${selectedMatchId}` ? "Saving..." : "Save Playing XI"}
-                  </button>
+                  {selectedMatch?.playingXIConfirmed && (
+                    <div className="text-xs font-bold text-success bg-success/10 border border-success/20 rounded-lg px-3 py-2">
+                      Playing XI already confirmed for this match. Re-confirming will update it.
+                    </div>
+                  )}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => handleSavePlayingXI(false)}
+                      disabled={!bothReady || submittingId === `playing-xi-${selectedMatchId}`}
+                      className="flex-1 rounded-lg border border-amber-500/50 bg-amber-500/10 text-amber-500 px-4 py-2 text-sm font-semibold disabled:opacity-40"
+                    >
+                      {submittingId === `playing-xi-${selectedMatchId}` ? "Saving..." : "Save as Probable XI"}
+                    </button>
+                    <button
+                      onClick={() => handleSavePlayingXI(true)}
+                      disabled={!bothReady || submittingId === `playing-xi-confirm-${selectedMatchId}`}
+                      className="flex-1 rounded-lg bg-success px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                    >
+                      {submittingId === `playing-xi-confirm-${selectedMatchId}` ? "Confirming..." : "Confirm Playing XI"}
+                    </button>
+                  </div>
                 </div>
               </>
             );
