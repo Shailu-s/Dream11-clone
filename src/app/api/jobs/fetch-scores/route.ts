@@ -5,7 +5,7 @@ import { calculateFantasyPoints, calculateEntryPoints } from "@/lib/scoring";
 import { syncMatchStatuses } from "@/lib/match-sync";
 
 /**
- * GET /api/cron/fetch-scores
+ * GET /api/jobs/fetch-scores
  *
  * Called by Vercel Cron every 2 minutes.
  * Protected by CRON_SECRET header — Vercel automatically sends this.

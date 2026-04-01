@@ -13,7 +13,7 @@ User → Vercel (Next.js + API Routes + Cron) → Supabase (Postgres)
 
 ### 1. Verify Cron is Registered on Vercel
 - Go to: vercel.com → your project → **Settings → Cron Jobs**
-- You should see: `/api/cron/fetch-scores` with schedule `*/2 * * * *`
+- You should see: `/api/jobs/fetch-scores` with schedule `*/2 * * * *`
 - If missing → `vercel.json` didn't deploy. Check Vercel deployment logs.
 
 ### 2. Verify Match is UPCOMING in DB
@@ -173,7 +173,7 @@ Then hit the cron manually via Vercel dashboard → Cron Jobs → Run Now.
 
 ### Need to manually trigger cron
 ```bash
-curl -X GET https://your-prod-url.vercel.app/api/cron/fetch-scores \
+curl -X GET https://your-prod-url.vercel.app/api/jobs/fetch-scores \
   -H "Authorization: Bearer stars11_cron_secret_2026"
 ```
 
