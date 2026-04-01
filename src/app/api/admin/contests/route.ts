@@ -2,6 +2,28 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+// List all contests for admin
+export async function GET() {
+  try {
+    await requireAdmin();
+    const contests = await prisma.contest.findMany({
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        entryFee: true,
+        match: { select: { team1: true, team2: true, date: true } },
+        creator: { select: { username: true } },
+        _count: { select: { entries: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return NextResponse.json({ contests });
+  } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+}
+
 // Cancel a contest and refund all entry fees
 export async function DELETE(req: Request) {
   try {

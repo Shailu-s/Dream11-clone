@@ -252,18 +252,34 @@ export default function TeamSelectionPage() {
             {savedTeams.map((team) => (
               <div
                 key={team.id}
-                onClick={() => {
-                  setSelections(team.players);
-                  setTeamName(team.teamName);
-                  setStep("captain");
-                }}
-                className="bg-card border border-border rounded-xl p-4 flex items-center justify-between cursor-pointer hover:bg-card-hover hover:border-primary/50 transition-colors"
+                className="bg-card border border-border rounded-xl p-4 flex items-center justify-between"
               >
                 <div>
                   <div className="font-semibold">{team.teamName}</div>
                   <div className="text-xs text-muted mt-0.5">{team.players.length} players selected</div>
                 </div>
-                <span className="text-xs text-primary font-semibold">Use this &rarr;</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setSelections(team.players);
+                      setTeamName(team.teamName);
+                      setStep("select");
+                    }}
+                    className="text-xs text-muted border border-border rounded-lg px-2.5 py-1.5 hover:bg-card-hover transition-colors"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelections(team.players);
+                      setTeamName(team.teamName);
+                      setStep("captain");
+                    }}
+                    className="text-xs text-primary font-semibold border border-primary/30 rounded-lg px-2.5 py-1.5 hover:bg-primary/10 transition-colors"
+                  >
+                    Use this &rarr;
+                  </button>
+                </div>
               </div>
             ))}
           </div>

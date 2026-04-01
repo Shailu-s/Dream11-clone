@@ -88,7 +88,7 @@ const EMPTY_STAT = {
   isOut: false,
 };
 
-type AdminTab = "tokens" | "scoring" | "matches" | "users" | "playing-xi";
+type AdminTab = "tokens" | "scoring" | "matches" | "users" | "playing-xi" | "contests";
 
 export default function AdminPage() {
   const { user: authUser, loading: authLoading } = useAuth();
@@ -97,6 +97,12 @@ export default function AdminPage() {
   const [matches, setMatches] = useState<MatchRow[]>([]);
   const [players, setPlayers] = useState<PlayerRow[]>([]);
   const [playerStats, setPlayerStats] = useState<Record<string, PlayerStatForm>>({});
+  const [adminContests, setAdminContests] = useState<Array<{
+    id: string; name: string; status: string; entryFee: number;
+    match: { team1: string; team2: string; date: string };
+    creator: { username: string };
+    _count: { entries: number };
+  }>>([]);
   const [playingXI, setPlayingXI] = useState<Record<string, boolean>>({});
   const [impactPlayers, setImpactPlayers] = useState<Record<string, boolean>>({});
   const [selectedMatchId, setSelectedMatchId] = useState("");
@@ -473,11 +479,22 @@ export default function AdminPage() {
     (m) => m.status === "LIVE" || m.status === "COMPLETED" || m.status === "UPCOMING"
   );
 
+  async function loadAdminContests() {
+    try {
+      const res = await fetch("/api/admin/contests");
+      if (res.ok) {
+        const data = await res.json();
+        setAdminContests(data.contests || []);
+      }
+    } catch { /* ignore */ }
+  }
+
   const tabs: { key: AdminTab; label: string; count?: number }[] = [
     { key: "tokens", label: "vINR Requests", count: transactions.length },
     { key: "playing-xi", label: "Playing XI" },
     { key: "scoring", label: "Scoring" },
     { key: "matches", label: "Matches" },
+    { key: "contests", label: "Contests" },
     { key: "users", label: "Users", count: users.length },
   ];
 
@@ -509,7 +526,7 @@ export default function AdminPage() {
         {tabs.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => { setActiveTab(tab.key); if (tab.key === "contests") loadAdminContests(); }}
             className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
               activeTab === tab.key
                 ? "bg-primary text-white"
@@ -1090,6 +1107,60 @@ export default function AdminPage() {
               </tbody>
             </table>
           </div>
+        </section>
+      )}
+
+      {activeTab === "contests" && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-lg font-semibold">All Contests</h2>
+            <button onClick={loadAdminContests} className="text-xs text-muted hover:text-foreground">Refresh</button>
+          </div>
+          {adminContests.length === 0 ? (
+            <div className="text-muted text-sm bg-card rounded-xl p-6 text-center">No contests found</div>
+          ) : (
+            adminContests.map((contest) => (
+              <div key={contest.id} className="bg-card border border-border rounded-xl p-4 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-semibold text-sm truncate">{contest.name}</div>
+                  <div className="text-xs text-muted mt-0.5">
+                    {contest.match.team1} vs {contest.match.team2} &middot; {new Date(contest.match.date).toLocaleDateString("en-IN")}
+                  </div>
+                  <div className="text-xs text-muted">
+                    by @{contest.creator.username} &middot; {contest._count.entries} entries &middot; {contest.entryFee} vINR entry
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    contest.status === "OPEN" ? "bg-success/20 text-success" :
+                    contest.status === "LOCKED" ? "bg-primary/20 text-primary" :
+                    contest.status === "COMPLETED" ? "bg-muted/20 text-muted" :
+                    "bg-danger/20 text-danger"
+                  }`}>{contest.status}</span>
+                  {(contest.status === "OPEN" || contest.status === "LOCKED") && (
+                    <button
+                      disabled={submittingId === `cancel-${contest.id}`}
+                      onClick={async () => {
+                        if (!confirm(`Cancel "${contest.name}"? This will refund all ${contest._count.entries} entries.`)) return;
+                        setSubmittingId(`cancel-${contest.id}`);
+                        const res = await fetch("/api/admin/contests", {
+                          method: "DELETE",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ contestId: contest.id }),
+                        });
+                        setSubmittingId(null);
+                        if (res.ok) { setMessage("Contest cancelled and entries refunded"); loadAdminContests(); }
+                        else { const d = await res.json(); setMessage(d.error || "Failed"); }
+                      }}
+                      className="text-xs text-danger border border-danger/30 rounded-lg px-2.5 py-1 hover:bg-danger/10 transition-colors disabled:opacity-50"
+                    >
+                      {submittingId === `cancel-${contest.id}` ? "..." : "Cancel"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
         </section>
       )}
 
