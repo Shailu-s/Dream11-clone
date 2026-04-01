@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { fetchCricScore, fetchScorecard, parseScorecard, isTeamMatch } from "@/lib/cricket-api";
+import { fetchCricScoreAdmin, fetchScorecardAdmin, parseScorecard, isTeamMatch } from "@/lib/cricket-api";
 import { calculateFantasyPoints, calculateEntryPoints } from "@/lib/scoring";
 
 export async function GET(req: Request) {
@@ -27,7 +27,7 @@ export async function GET(req: Request) {
     // 1. If no API ID, try to find it
     if (!apiMatchId) {
       console.log(`Searching for API match ID for ${match.team1} vs ${match.team2}`);
-      const apiMatches = await fetchCricScore();
+      const apiMatches = await fetchCricScoreAdmin();
       
       // Match by teams and date (within 24 hours)
       const foundMatch = apiMatches.find((m: any) => {
@@ -53,7 +53,7 @@ export async function GET(req: Request) {
     }
 
     // 2. Fetch scorecard
-    const { scorecard: apiScorecard } = await fetchScorecard(apiMatchId);
+    const apiScorecard = await fetchScorecardAdmin(apiMatchId);
 
     // 3. Get all players for these teams to facilitate matching
     const dbPlayers = await prisma.player.findMany({

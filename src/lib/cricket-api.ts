@@ -175,6 +175,33 @@ export async function fetchScorecard(matchId: string): Promise<{ scorecard: any;
 }
 
 /**
+ * Admin-only fetch using a dedicated API key (CRICKET_DATA_API_KEY_ADMIN).
+ * Completely separate from the cron keys — never touches the shared budget counter.
+ */
+async function fetchAdminOnly(path: string): Promise<any> {
+  const adminKey = process.env.CRICKET_DATA_API_KEY_ADMIN;
+  if (!adminKey) throw new Error("CRICKET_DATA_API_KEY_ADMIN not configured");
+  const sep = path.includes("?") ? "&" : "?";
+  const url = `${BASE_URL}/${path}${sep}apikey=${adminKey}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  if (isRateLimitError(data)) throw new Error("Admin API key daily limit reached");
+  return data;
+}
+
+export async function fetchCricScoreAdmin() {
+  const data = await fetchAdminOnly("cricScore");
+  if (data.status !== "success") throw new Error(data.reason || "Failed to fetch matches");
+  return data.data || [];
+}
+
+export async function fetchScorecardAdmin(matchId: string): Promise<any> {
+  const data = await fetchAdminOnly(`match_scorecard?id=${matchId}`);
+  if (data.status !== "success") throw new Error(data.reason || "Failed to fetch scorecard");
+  return data.data;
+}
+
+/**
  * Normalizes player name for matching.
  * E.g., "MS Dhoni" -> "ms dhoni", "M.S. Dhoni" -> "ms dhoni"
  */
