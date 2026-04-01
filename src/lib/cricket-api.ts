@@ -1,4 +1,5 @@
 import { Player } from "@prisma/client";
+import { prisma } from "./prisma";
 
 const BASE_URL = "https://api.cricapi.com/v1";
 
@@ -8,6 +9,9 @@ const API_KEYS = [
   process.env.CRICKET_DATA_API_KEY_2,
   process.env.CRICKET_DATA_API_KEY_3,
 ].filter(Boolean) as string[];
+
+// Stop using a key when it hits this threshold — leaves 10 req buffer for manual admin use
+const SAFE_LIMIT_PER_KEY = 90;
 
 function isRateLimitError(data: any): boolean {
   if (!data) return false;
@@ -22,22 +26,91 @@ async function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+/** Returns today's date string in UTC: "YYYY-MM-DD" */
+function utcDateString(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 /**
- * Tries each API key in sequence. Waits 2s between attempts.
- * Only throws if ALL keys are exhausted.
+ * Returns current hit count for a given key index today.
  */
-async function fetchWithFallback(path: string): Promise<any> {
-  const sep = path.includes("?") ? "&" : "?";
+export async function getKeyUsageToday(keyIndex: number): Promise<number> {
+  const date = utcDateString();
+  const record = await prisma.apiKeyUsage.findUnique({
+    where: { keyIndex_date: { keyIndex, date } },
+  });
+  return record?.hitCount ?? 0;
+}
+
+/**
+ * Increments usage counter for a key after a successful request.
+ */
+async function recordKeyUsage(keyIndex: number): Promise<void> {
+  const date = utcDateString();
+  await prisma.apiKeyUsage.upsert({
+    where: { keyIndex_date: { keyIndex, date } },
+    update: { hitCount: { increment: 1 } },
+    create: { keyIndex, date, hitCount: 1 },
+  });
+}
+
+/**
+ * Returns total requests used today across all keys.
+ */
+export async function getTotalUsageToday(): Promise<number> {
+  const date = utcDateString();
+  const records = await prisma.apiKeyUsage.findMany({ where: { date } });
+  return records.reduce((sum, r) => sum + r.hitCount, 0);
+}
+
+/**
+ * Returns the index of the best available key (lowest usage, under safe limit).
+ * Returns -1 if all keys are at or above safe limit.
+ */
+export async function getBestAvailableKeyIndex(): Promise<number> {
+  const date = utcDateString();
+  const usageRecords = await prisma.apiKeyUsage.findMany({ where: { date } });
+  const usageMap = new Map(usageRecords.map(r => [r.keyIndex, r.hitCount]));
 
   for (let i = 0; i < API_KEYS.length; i++) {
+    const used = usageMap.get(i) ?? 0;
+    if (used < SAFE_LIMIT_PER_KEY) {
+      return i;
+    }
+  }
+  return -1; // all keys exhausted
+}
+
+/**
+ * Tries each API key in sequence, tracking budget.
+ * Skips keys already at safe limit. Only throws if ALL keys are exhausted.
+ */
+async function fetchWithFallback(path: string): Promise<{ data: any; keyIndex: number }> {
+  const sep = path.includes("?") ? "&" : "?";
+  const date = utcDateString();
+  const usageRecords = await prisma.apiKeyUsage.findMany({ where: { date } });
+  const usageMap = new Map(usageRecords.map(r => [r.keyIndex, r.hitCount]));
+
+  for (let i = 0; i < API_KEYS.length; i++) {
+    const used = usageMap.get(i) ?? 0;
+
+    // Skip keys at or above safe limit
+    if (used >= SAFE_LIMIT_PER_KEY) {
+      console.warn(`[CricAPI] Key ${i + 1} at budget limit (${used}/${SAFE_LIMIT_PER_KEY}), skipping.`);
+      continue;
+    }
+
     const key = API_KEYS[i];
     const url = `${BASE_URL}/${path}${sep}apikey=${key}`;
     const res = await fetch(url);
     const data = await res.json();
 
+    // Always record usage — even rate-limit responses count as a hit
+    await recordKeyUsage(i);
+
     if (!isRateLimitError(data)) {
       if (i > 0) console.log(`[CricAPI] Key ${i + 1} succeeded.`);
-      return data;
+      return { data, keyIndex: i };
     }
 
     console.warn(`[CricAPI] Key ${i + 1} hit rate limit (${data.info?.hitsToday ?? "?"}/${data.info?.hitsLimit ?? "?"}). ${i + 1 < API_KEYS.length ? "Trying next key in 2s..." : "All keys exhausted."}`);
@@ -48,6 +121,22 @@ async function fetchWithFallback(path: string): Promise<any> {
   }
 
   throw new Error("All CricAPI keys have hit their daily limit. Try again tomorrow.");
+}
+
+/**
+ * Detects if a CricAPI scorecard response indicates the match has ended.
+ * Checks the `status` and `matchEnded` fields returned by the API.
+ */
+export function isMatchEnded(apiData: any): boolean {
+  if (!apiData) return false;
+
+  // CricAPI sets matchEnded: true when match is over
+  if (apiData.matchEnded === true) return true;
+
+  // Also check the status string for completion signals
+  const status = (apiData.status || "").toLowerCase();
+  const endSignals = ["won", "lost", "tied", "no result", "abandoned", "draw", "match over"];
+  return endSignals.some(signal => status.includes(signal));
 }
 
 const TEAM_ALIASES: Record<string, string[]> = {
@@ -70,19 +159,19 @@ export function isTeamMatch(dbTeam: string, apiTeamName: string): boolean {
 }
 
 export async function fetchCricScore() {
-  const data = await fetchWithFallback("cricScore");
+  const { data } = await fetchWithFallback("cricScore");
   if (data.status !== "success") {
     throw new Error(data.reason || "Failed to fetch matches");
   }
   return data.data || [];
 }
 
-export async function fetchScorecard(matchId: string) {
-  const data = await fetchWithFallback(`match_scorecard?id=${matchId}`);
+export async function fetchScorecard(matchId: string): Promise<{ scorecard: any; keyIndex: number }> {
+  const { data, keyIndex } = await fetchWithFallback(`match_scorecard?id=${matchId}`);
   if (data.status !== "success") {
     throw new Error(data.reason || "Failed to fetch scorecard");
   }
-  return data.data;
+  return { scorecard: data.data, keyIndex };
 }
 
 /**

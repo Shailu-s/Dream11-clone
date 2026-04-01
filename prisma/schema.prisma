@@ -187,6 +187,34 @@ model SavedTeam {
   @@map("saved_teams")
 }
 
+// Tracks daily API key usage to prevent exceeding 100 req/day per key
+model ApiKeyUsage {
+  id        String   @id @default(cuid())
+  keyIndex  Int      // 0, 1, 2 (matches API_KEYS array index)
+  date      String   // "YYYY-MM-DD" UTC date
+  hitCount  Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([keyIndex, date])
+  @@map("api_key_usage")
+}
+
+model CronLog {
+  id         String   @id @default(cuid())
+  ranAt      DateTime @default(now())
+  matchId    String?
+  matchName  String?
+  apiKeyUsed Int?     // 1, 2, or 3
+  requestsUsedToday Int? // total hits today across all keys
+  matchEnded Boolean  @default(false)
+  statsCount Int?     // number of player stats saved
+  error      String?
+  skipped    Boolean  @default(false) // true if no LIVE match found
+  notes      String?
+
+  @@map("cron_logs")
+}
+
 model PlayerMatchStats {
   id              String  @id @default(cuid())
   playerId        String

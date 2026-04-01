@@ -53,7 +53,7 @@ export async function GET(req: Request) {
     }
 
     // 2. Fetch scorecard
-    const apiScorecard = await fetchScorecard(apiMatchId);
+    const { scorecard: apiScorecard } = await fetchScorecard(apiMatchId);
 
     // 3. Get all players for these teams to facilitate matching
     const dbPlayers = await prisma.player.findMany({

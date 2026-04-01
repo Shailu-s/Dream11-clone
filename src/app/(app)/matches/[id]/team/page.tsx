@@ -9,6 +9,7 @@ interface Player {
   team: string;
   role: string;
   creditPrice: number;
+  isInPlayingXI?: boolean;
 }
 
 interface Selection {

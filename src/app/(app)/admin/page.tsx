@@ -104,6 +104,14 @@ export default function AdminPage() {
   const [matchFilter, setMatchFilter] = useState<"ALL" | "UPCOMING" | "LIVE" | "COMPLETED">("UPCOMING");
   const [showFinalizeModal, setShowFinalizeModal] = useState(false);
   const [isFetchingApi, setIsFetchingApi] = useState(false);
+  const [cronStatus, setCronStatus] = useState<{
+    lastRanAt: string | null;
+    matchName: string | null;
+    statsCount: number | null;
+    matchEnded: boolean;
+    error: string | null;
+    requestsUsedToday: number | null;
+  } | null>(null);
 
   async function fetchAdminData() {
     const [usersRes, txRes, matchesRes] = await Promise.all([
@@ -125,6 +133,18 @@ export default function AdminPage() {
     };
   }
 
+  async function loadCronStatus() {
+    try {
+      const res = await fetch("/api/admin/cron-status");
+      if (res.ok) {
+        const data = await res.json();
+        setCronStatus(data);
+      }
+    } catch {
+      // non-critical, ignore
+    }
+  }
+
   async function loadAdminData() {
     const data = await fetchAdminData();
     setUsers(data.users);
@@ -138,6 +158,7 @@ export default function AdminPage() {
       const upcomingMatch = data.matches.find((m: MatchRow) => m.status === "UPCOMING");
       setSelectedMatchId(liveMatch?.id || upcomingMatch?.id || data.matches[0].id);
     }
+    await loadCronStatus();
   }
 
   useEffect(() => {
@@ -641,6 +662,25 @@ export default function AdminPage() {
       {/* Scoring Tab */}
       {activeTab === "scoring" && (
         <section className="space-y-4">
+
+          {/* Cron Status Banner */}
+          {cronStatus && (
+            <div className={`rounded-xl border p-3 text-xs space-y-1 ${cronStatus.error ? "border-red-400/40 bg-red-500/10" : "border-border bg-card"}`}>
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-muted uppercase tracking-wider">Auto-Fetch Status</span>
+                <button onClick={loadCronStatus} className="text-primary hover:underline text-[10px]">Refresh</button>
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-muted">
+                <span>Last run: <span className="text-foreground font-semibold">{cronStatus.lastRanAt ? new Date(cronStatus.lastRanAt).toLocaleString("en-IN") : "Never"}</span></span>
+                {cronStatus.matchName && <span>Match: <span className="text-foreground font-semibold">{cronStatus.matchName}</span></span>}
+                {cronStatus.statsCount !== null && <span>Players saved: <span className="text-foreground font-semibold">{cronStatus.statsCount}</span></span>}
+                {cronStatus.matchEnded && <span className="text-orange-400 font-bold">Match ended — ready to finalize</span>}
+                <span>API hits today: <span className={`font-semibold ${(cronStatus.requestsUsedToday ?? 0) >= 250 ? "text-red-400" : (cronStatus.requestsUsedToday ?? 0) >= 200 ? "text-yellow-400" : "text-green-400"}`}>{cronStatus.requestsUsedToday ?? 0}/270</span></span>
+              </div>
+              {cronStatus.error && <div className="text-red-400 font-semibold">Error: {cronStatus.error}</div>}
+            </div>
+          )}
+
           <div className="rounded-xl border border-border bg-card p-4">
             <label className="mb-2 block text-sm text-muted">Select Match</label>
             <select

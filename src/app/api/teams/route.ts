@@ -19,6 +19,7 @@ export async function GET(req: Request) {
       where: {
         userId: user.id,
         ...(matchId ? { matchId } : {}),
+        match: { status: { not: "COMPLETED" } },
       },
       include: {
         match: { select: { id: true, team1: true, team2: true, date: true, status: true } },
