@@ -19,6 +19,7 @@ export async function GET() {
                 team1: true,
                 team2: true,
                 date: true,
+                status: true,
               },
             },
           },

@@ -35,8 +35,16 @@ interface ContestEntry {
     id: string;
     name: string;
     status: string;
-    match: { team1: string; team2: string; date: string };
+    match: { team1: string; team2: string; date: string; status: string };
   };
+}
+
+interface GroupedContest {
+  contestId: string;
+  contestName: string;
+  contestStatus: string;
+  match: { team1: string; team2: string; date: string; status: string };
+  teams: { id: string; teamName: string; totalPoints: number; rank: number | null; prizeWon: number }[];
 }
 
 export default function DashboardPage() {
@@ -82,11 +90,37 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
-  const activeEntries = myEntries.filter(
-    (e) => e.contest.status === "OPEN" || e.contest.status === "LOCKED"
+  // Group entries by contest — one card per contest, multiple teams inside
+  const groupedContests = myEntries.reduce<Map<string, GroupedContest>>((acc, entry) => {
+    if (!acc.has(entry.contest.id)) {
+      acc.set(entry.contest.id, {
+        contestId: entry.contest.id,
+        contestName: entry.contest.name,
+        contestStatus: entry.contest.status,
+        match: entry.contest.match,
+        teams: [],
+      });
+    }
+    acc.get(entry.contest.id)!.teams.push({
+      id: entry.id,
+      teamName: entry.teamName,
+      totalPoints: entry.totalPoints,
+      rank: entry.rank,
+      prizeWon: entry.prizeWon,
+    });
+    return acc;
+  }, new Map());
+
+  const allGrouped = Array.from(groupedContests.values());
+
+  // Active: contest is open/locked AND match is not completed
+  const activeEntries = allGrouped.filter(
+    (g) =>
+      (g.contestStatus === "OPEN" || g.contestStatus === "LOCKED") &&
+      g.match.status !== "COMPLETED"
   );
-  const pastEntries = myEntries.filter(
-    (e) => e.contest.status === "COMPLETED" || e.contest.status === "CANCELLED"
+  const pastEntries = allGrouped.filter(
+    (g) => g.contestStatus === "COMPLETED" || g.contestStatus === "CANCELLED" || g.match.status === "COMPLETED"
   );
 
   return (
@@ -223,8 +257,8 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {activeEntries.map((entry) => (
-                  <EntryCard key={entry.id} entry={entry} />
+                {activeEntries.map((grouped) => (
+                  <GroupedContestCard key={grouped.contestId} grouped={grouped} />
                 ))}
               </div>
             )}
@@ -237,8 +271,8 @@ export default function DashboardPage() {
                 <div className="h-[1px] flex-1 bg-border mx-4" />
               </div>
               <div className="space-y-3 opacity-75">
-                {pastEntries.map((entry) => (
-                  <EntryCard key={entry.id} entry={entry} />
+                {pastEntries.map((grouped) => (
+                  <GroupedContestCard key={grouped.contestId} grouped={grouped} />
                 ))}
               </div>
             </div>
@@ -359,13 +393,13 @@ function TeamCard({ team }: { team: SavedTeam }) {
   );
 }
 
-function EntryCard({ entry }: { entry: ContestEntry }) {
-  const t1 = getTeamInfo(entry.contest.match.team1);
-  const t2 = getTeamInfo(entry.contest.match.team2);
+function GroupedContestCard({ grouped }: { grouped: GroupedContest }) {
+  const t1 = getTeamInfo(grouped.match.team1);
+  const t2 = getTeamInfo(grouped.match.team2);
 
   return (
     <Link
-      href={`/contests/${entry.contest.id}`}
+      href={`/contests/${grouped.contestId}`}
       className="block bg-card border-2 border-border rounded-2xl p-4 hover:border-primary/40 transition-all group"
     >
       <div className="flex items-center justify-between mb-3">
@@ -379,15 +413,23 @@ function EntryCard({ entry }: { entry: ContestEntry }) {
             </div>
           </div>
           <div>
-            <div className="font-black text-sm group-hover:text-primary transition-colors">{entry.contest.name}</div>
+            <div className="font-black text-sm group-hover:text-primary transition-colors">{grouped.contestName}</div>
             <div className="text-[10px] text-muted font-bold uppercase tracking-tight">{t1.initials} vs {t2.initials}</div>
           </div>
         </div>
-        <span className="bg-primary/10 text-primary text-[10px] font-black px-2 py-0.5 rounded uppercase">{entry.contest.status}</span>
+        <span className="bg-primary/10 text-primary text-[10px] font-black px-2 py-0.5 rounded uppercase">{grouped.contestStatus}</span>
       </div>
-      <div className="text-[10px] font-black text-muted uppercase tracking-wider bg-muted/20 px-3 py-1.5 rounded-lg flex justify-between items-center">
-        <span>Team: {entry.teamName}</span>
-        <span className="text-primary">Details &rarr;</span>
+      <div className="space-y-1">
+        {grouped.teams.map((team) => (
+          <div key={team.id} className="text-[10px] font-black text-muted uppercase tracking-wider bg-muted/20 px-3 py-1.5 rounded-lg flex justify-between items-center">
+            <span>{team.teamName}</span>
+            {team.rank ? (
+              <span className="text-primary">Rank #{team.rank} · {team.totalPoints} pts</span>
+            ) : (
+              <span className="text-primary">{team.totalPoints > 0 ? `${team.totalPoints} pts` : "View →"}</span>
+            )}
+          </div>
+        ))}
       </div>
     </Link>
   );

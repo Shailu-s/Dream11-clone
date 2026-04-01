@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { syncMatchStatuses } from "@/lib/match-sync";
 
 // GET /api/teams?matchId=... — list user's saved teams (optionally filtered by match)
 export async function GET(req: Request) {
@@ -12,6 +13,7 @@ export async function GET(req: Request) {
   }
 
   try {
+    await syncMatchStatuses();
     const { searchParams } = new URL(req.url);
     const matchId = searchParams.get("matchId");
 

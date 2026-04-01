@@ -29,8 +29,16 @@ interface MyEntry {
     id: string;
     name: string;
     status: string;
-    match: { team1: string; team2: string; date: string };
+    match: { team1: string; team2: string; date: string; status: string };
   };
+}
+
+interface GroupedEntry {
+  contestId: string;
+  contestName: string;
+  contestStatus: string;
+  match: { team1: string; team2: string; date: string; status: string };
+  teams: { id: string; teamName: string; totalPoints: number; rank: number | null; prizeWon: number }[];
 }
 
 export default function ContestsPage() {
@@ -77,10 +85,37 @@ export default function ContestsPage() {
     router.push(`/contests/${data.contest.id}`);
   }
 
-  const activeEntries = myEntries.filter(
-    (e) => e.contest.status === "OPEN" || e.contest.status === "LOCKED"
+  // Group active entries by contest — one card per contest, multiple teams inside
+  const groupedActive = myEntries
+    .filter(
+      (e) =>
+        (e.contest.status === "OPEN" || e.contest.status === "LOCKED") &&
+        e.contest.match.status !== "COMPLETED"
+    )
+    .reduce<Map<string, GroupedEntry>>((acc, entry) => {
+      if (!acc.has(entry.contest.id)) {
+        acc.set(entry.contest.id, {
+          contestId: entry.contest.id,
+          contestName: entry.contest.name,
+          contestStatus: entry.contest.status,
+          match: entry.contest.match,
+          teams: [],
+        });
+      }
+      acc.get(entry.contest.id)!.teams.push({
+        id: entry.id,
+        teamName: entry.teamName,
+        totalPoints: entry.totalPoints,
+        rank: entry.rank,
+        prizeWon: entry.prizeWon,
+      });
+      return acc;
+    }, new Map());
+
+  const activeEntries = Array.from(groupedActive.values());
+  const pastEntries = myEntries.filter(
+    (e) => e.contest.status === "COMPLETED" || e.contest.status === "CANCELLED" || e.contest.match.status === "COMPLETED"
   );
-  const pastEntries = myEntries.filter((e) => e.contest.status === "COMPLETED");
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-20">
@@ -221,11 +256,11 @@ export default function ContestsPage() {
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div className="bg-muted/20 p-3 rounded-xl">
                         <p className="text-[10px] text-muted font-black uppercase tracking-wider mb-1">Prize Pool</p>
-                        <p className="text-lg font-black text-foreground">₹{contest.prizePool}</p>
+                        <p className="text-lg font-black text-foreground">{contest.entryFee * contest._count.entries} vINR</p>
                       </div>
                       <div className="bg-muted/20 p-3 rounded-xl text-right">
                         <p className="text-[10px] text-muted font-black uppercase tracking-wider mb-1">Entry Fee</p>
-                        <p className="text-lg font-black text-primary">₹{contest.entryFee}</p>
+                        <p className="text-lg font-black text-primary">{contest.entryFee} vINR</p>
                       </div>
                     </div>
 
@@ -261,13 +296,13 @@ export default function ContestsPage() {
                 <div className="h-[1px] flex-1 bg-border mx-4" />
               </div>
               <div className="space-y-3">
-                {activeEntries.map((entry) => {
-                  const t1 = getTeamInfo(entry.contest.match.team1);
-                  const t2 = getTeamInfo(entry.contest.match.team2);
+                {activeEntries.map((grouped) => {
+                  const t1 = getTeamInfo(grouped.match.team1);
+                  const t2 = getTeamInfo(grouped.match.team2);
                   return (
                     <button
-                      key={entry.id}
-                      onClick={() => router.push(`/contests/${entry.contest.id}`)}
+                      key={grouped.contestId}
+                      onClick={() => router.push(`/contests/${grouped.contestId}`)}
                       className="w-full text-left bg-card border-2 border-border rounded-2xl p-4 hover:border-primary/40 transition-all hover:shadow-lg hover:shadow-primary/5 group"
                     >
                       <div className="flex items-center justify-between mb-3">
@@ -281,25 +316,29 @@ export default function ContestsPage() {
                             </div>
                           </div>
                           <div>
-                            <div className="font-black text-sm group-hover:text-primary transition-colors">{entry.contest.name}</div>
+                            <div className="font-black text-sm group-hover:text-primary transition-colors">{grouped.contestName}</div>
                             <div className="text-[10px] text-muted font-bold uppercase tracking-tight">
                               {t1.initials} vs {t2.initials}
                             </div>
                           </div>
                         </div>
                         <span className={`text-[10px] px-2.5 py-1 rounded-full font-black uppercase tracking-wider ${
-                          entry.contest.status === "LOCKED" ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-success/10 text-success border border-success/20"
+                          grouped.contestStatus === "LOCKED" ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-success/10 text-success border border-success/20"
                         }`}>
-                          {entry.contest.status}
+                          {grouped.contestStatus}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between bg-muted/20 rounded-xl px-3 py-2">
-                        <div className="text-[10px] font-black text-muted uppercase tracking-wider">
-                          Team: <span className="text-foreground">{entry.teamName}</span>
-                        </div>
-                        <div className="text-primary text-[10px] font-black uppercase tracking-wider">
-                          View Details &rarr;
-                        </div>
+                      <div className="space-y-1">
+                        {grouped.teams.map((team) => (
+                          <div key={team.id} className="flex items-center justify-between bg-muted/20 rounded-xl px-3 py-2">
+                            <div className="text-[10px] font-black text-muted uppercase tracking-wider">
+                              <span className="text-foreground">{team.teamName}</span>
+                            </div>
+                            <div className="text-primary text-[10px] font-black uppercase tracking-wider">
+                              {team.totalPoints > 0 ? `${team.totalPoints} pts` : "View Details →"}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </button>
                   );

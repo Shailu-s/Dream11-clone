@@ -11,8 +11,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid data" }, { status: 400 });
     }
 
-    // Set isInPlayingXI = false for all players in this match first
-    // Or just update the ones provided. Let's do a transaction for reliability.
+    // Validate exactly 11 selected per team
+    const match = await prisma.match.findUnique({ where: { id: matchId } });
+    if (!match) return NextResponse.json({ error: "Match not found" }, { status: 404 });
+
+    const selectedIds = playingXIs.filter((x: any) => x.isInPlayingXI).map((x: any) => x.playerId);
+    const selectedPlayers = await prisma.player.findMany({
+      where: { id: { in: selectedIds } },
+      select: { team: true },
+    });
+    const t1Count = selectedPlayers.filter(p => p.team === match.team1).length;
+    const t2Count = selectedPlayers.filter(p => p.team === match.team2).length;
+    if (t1Count !== 11 || t2Count !== 11) {
+      return NextResponse.json({
+        error: `Each team must have exactly 11 players. Got ${match.team1}: ${t1Count}, ${match.team2}: ${t2Count}`
+      }, { status: 400 });
+    }
     
     await Promise.all(
       playingXIs.map((item: { playerId: string; isInPlayingXI: boolean }) =>

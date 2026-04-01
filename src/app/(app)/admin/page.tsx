@@ -596,66 +596,121 @@ export default function AdminPage() {
                 </option>
               ))}
             </select>
-
-            <div className="mt-4">
-              <button
-                onClick={handleSavePlayingXI}
-                disabled={scoringLoading || players.length === 0 || submittingId === `playing-xi-${selectedMatchId}`}
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                {submittingId === `playing-xi-${selectedMatchId}` ? "Saving..." : "Save Playing XI"}
-              </button>
-            </div>
           </div>
 
           {scoringLoading ? (
             <div className="text-sm text-muted">Loading squad...</div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[selectedMatch?.team1, selectedMatch?.team2].map((teamName) => {
-                if (!teamName) return null;
-                const teamPlayers = players.filter(p => p.team === teamName);
-                const count = teamPlayers.filter(p => playingXI[p.id]).length;
+          ) : (() => {
+            const ROLE_ORDER = ["WK", "BAT", "AR", "BOWL"];
+            const ROLE_LABEL: Record<string, string> = { WK: "Wicket-Keepers", BAT: "Batters", AR: "All-Rounders", BOWL: "Bowlers" };
 
-                return (
-                  <div key={teamName} className="rounded-xl border border-border bg-card overflow-hidden">
-                    <div className="bg-background px-4 py-2 border-b border-border flex justify-between items-center">
-                      <span className="font-bold">{teamName}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${count === 11 ? "bg-success/20 text-success" : "bg-muted/20 text-muted"}`}>
-                        {count} Selected
-                      </span>
-                    </div>
-                    <div className="p-2 space-y-1">
-                      {teamPlayers.map(player => (
-                        <label 
-                          key={player.id} 
-                          className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
-                            playingXI[player.id] ? "bg-primary/10 border-primary/20" : "hover:bg-background"
-                          } border border-transparent`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <input 
-                              type="checkbox"
-                              checked={playingXI[player.id] || false}
-                              onChange={(e) => setPlayingXI(prev => ({ ...prev, [player.id]: e.target.checked }))}
-                              className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
-                            />
-                            <div>
-                              <div className="text-sm font-medium">{player.name}</div>
-                              <div className="text-[10px] text-muted uppercase font-bold">{player.role}</div>
-                            </div>
-                          </div>
-                          {playingXI[player.id] && (
-                            <span className="w-2 h-2 rounded-full bg-success shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
-                          )}
-                        </label>
-                      ))}
-                    </div>
+            const team1 = selectedMatch?.team1;
+            const team2 = selectedMatch?.team2;
+            const t1Count = players.filter(p => p.team === team1 && playingXI[p.id]).length;
+            const t2Count = players.filter(p => p.team === team2 && playingXI[p.id]).length;
+            const bothReady = t1Count === 11 && t2Count === 11;
+
+            return (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[team1, team2].map((teamName) => {
+                    if (!teamName) return null;
+                    const teamPlayers = players.filter(p => p.team === teamName);
+                    const count = teamPlayers.filter(p => playingXI[p.id]).length;
+                    const full = count === 11;
+
+                    return (
+                      <div key={teamName} className="rounded-xl border border-border bg-card overflow-hidden">
+                        {/* Team header */}
+                        <div className={`px-4 py-2.5 border-b border-border flex justify-between items-center ${full ? "bg-success/10" : "bg-background"}`}>
+                          <span className="font-bold text-sm">{teamName}</span>
+                          <span className={`text-xs font-black px-2.5 py-1 rounded-full ${
+                            full ? "bg-success text-white" : count > 11 ? "bg-danger text-white" : "bg-muted/30 text-muted"
+                          }`}>
+                            {count}/11
+                          </span>
+                        </div>
+
+                        {/* Players grouped by role */}
+                        <div className="p-2 space-y-3">
+                          {ROLE_ORDER.map((role) => {
+                            const rolePlayers = teamPlayers
+                              .filter(p => p.role === role)
+                              .sort((a, b) => b.creditPrice - a.creditPrice);
+                            if (rolePlayers.length === 0) return null;
+                            const roleSelected = rolePlayers.filter(p => playingXI[p.id]).length;
+
+                            return (
+                              <div key={role}>
+                                <div className="flex items-center gap-2 px-2 mb-1">
+                                  <span className="text-[10px] font-black text-muted uppercase tracking-widest">{ROLE_LABEL[role]}</span>
+                                  {roleSelected > 0 && (
+                                    <span className="text-[10px] font-black text-primary">{roleSelected}</span>
+                                  )}
+                                </div>
+                                <div className="space-y-0.5">
+                                  {rolePlayers.map(player => {
+                                    const checked = playingXI[player.id] || false;
+                                    const disabled = !checked && count >= 11;
+                                    return (
+                                      <label
+                                        key={player.id}
+                                        className={`flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
+                                          checked
+                                            ? "bg-primary/10 border border-primary/30"
+                                            : disabled
+                                            ? "opacity-40 cursor-not-allowed border border-transparent"
+                                            : "hover:bg-background cursor-pointer border border-transparent"
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-3">
+                                          <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            disabled={disabled}
+                                            onChange={(e) => setPlayingXI(prev => ({ ...prev, [player.id]: e.target.checked }))}
+                                            className="w-4 h-4 rounded border-border text-primary focus:ring-primary disabled:cursor-not-allowed"
+                                          />
+                                          <div>
+                                            <div className="text-sm font-semibold">{player.name}</div>
+                                            <div className="text-[10px] text-muted font-bold">{player.creditPrice} Cr</div>
+                                          </div>
+                                        </div>
+                                        {checked && (
+                                          <span className="w-2 h-2 rounded-full bg-success shadow-[0_0_6px_rgba(34,197,94,0.7)]" />
+                                        )}
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Save button — only active when both teams have exactly 11 */}
+                <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between gap-4">
+                  <div className="text-sm text-muted">
+                    {bothReady
+                      ? <span className="text-success font-bold">Both teams ready — 11/11 each</span>
+                      : <span>Select exactly 11 players per team to save ({team1}: {t1Count}/11 · {team2}: {t2Count}/11)</span>
+                    }
                   </div>
-                );
-              })}
-            </div>
-          )}
+                  <button
+                    onClick={handleSavePlayingXI}
+                    disabled={!bothReady || submittingId === `playing-xi-${selectedMatchId}`}
+                    className="rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-white disabled:opacity-40 whitespace-nowrap"
+                  >
+                    {submittingId === `playing-xi-${selectedMatchId}` ? "Saving..." : "Save Playing XI"}
+                  </button>
+                </div>
+              </>
+            );
+          })()}
         </section>
       )}
 

@@ -168,7 +168,7 @@ export default function ContestDetailPage() {
               ⏱ {countdown}
             </span>
           )}
-          {matchStarted && contest.match.status !== "COMPLETED" && (
+          {contest.match.status === "LIVE" && (
             <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-danger/15 text-danger">
               <span className="w-1.5 h-1.5 rounded-full bg-danger animate-pulse" />
               Live
@@ -255,7 +255,7 @@ export default function ContestDetailPage() {
         <h2 className="text-lg font-semibold">
           {contest.status === "COMPLETED" ? "Final Leaderboard" : "Participants"}
         </h2>
-        {matchStarted && contest.status !== "COMPLETED" && (
+        {contest.match.status === "LIVE" && (
           <span className="text-xs text-danger flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-danger animate-pulse" />
             Live scores
