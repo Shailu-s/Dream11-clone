@@ -16,7 +16,12 @@ interface Contest {
   prizeDistribution: Array<{ rank: number; percentage: number }>;
   inviteCode: string;
   status: string;
-  match: { team1: string; team2: string; date: string; venue: string; status: string };
+  match: {
+    team1: string; team2: string; date: string; venue: string; status: string;
+    result?: string | null;
+    scores?: Array<{ r: number; w: number; o: number; inning: string }> | null;
+    toss?: string | null;
+  };
   creator: { username: string };
   entries: Array<{
     id: string;
@@ -28,6 +33,28 @@ interface Contest {
     user: { username: string };
   }>;
   _count: { entries: number };
+}
+
+interface ScorecardRow {
+  playerId: string;
+  name: string;
+  team: string;
+  role: string;
+  runs: number;
+  ballsFaced: number;
+  fours: number;
+  sixes: number;
+  wickets: number;
+  oversBowled: number;
+  maidens: number;
+  runsConceded: number;
+  catches: number;
+  stumpings: number;
+  runOutsDirect: number;
+  runOutsIndirect: number;
+  didBat: boolean;
+  isInPlayingXI: boolean;
+  fantasyPoints: number;
 }
 
 export default function ContestDetailPage() {
@@ -42,6 +69,8 @@ export default function ContestDetailPage() {
   const [joinCode, setJoinCode] = useState("");
   const [joinLoading, setJoinLoading] = useState(false);
   const [joinError, setJoinError] = useState("");
+  const [scorecard, setScorecard] = useState<ScorecardRow[]>([]);
+  const [scorecardTeam, setScorecardTeam] = useState<string | null>(null);
 
   const loadContest = (c: typeof id) => {
     return fetch(`/api/contests/${c}`)
@@ -51,6 +80,7 @@ export default function ContestDetailPage() {
         setIsParticipant(data.isParticipant);
         setIsCreator(data.isCreator);
         setUserId(data.userId);
+        setScorecard(data.scorecard || []);
         setLoading(false);
       });
   };
@@ -117,16 +147,45 @@ export default function ContestDetailPage() {
   const canJoin = contest.status === "OPEN" && !isParticipant && !matchStarted;
   const canAddTeam = contest.status === "OPEN" && isParticipant && !matchStarted;
 
+  // Scorecard helpers — extracted so we can render inside the top card
+  const team1 = contest.match.team1;
+  const team2 = contest.match.team2;
+  const ALIASES: Record<string, string[]> = {
+    CSK: ["chennai super kings"], MI: ["mumbai indians"],
+    RCB: ["royal challengers"], KKR: ["kolkata knight riders"],
+    DC: ["delhi capitals"], PBKS: ["punjab kings"],
+    RR: ["rajasthan royals"], SRH: ["sunrisers hyderabad"],
+    GT: ["gujarat titans"], LSG: ["lucknow super giants"],
+  };
+  const scores = contest.match.scores;
+  const getScore = (teamCode: string) => {
+    const aliases = [teamCode.toLowerCase(), ...(ALIASES[teamCode] || [])];
+    return scores?.find((s: { r: number; w: number; o: number; inning: string }) =>
+      aliases.some(a => s.inning.toLowerCase().includes(a))
+    );
+  };
+  const s1 = getScore(team1);
+  const s2 = getScore(team2);
+  const t1 = getTeamInfo(team1);
+  const t2 = getTeamInfo(team2);
+  const hasScores = !!(s1 || s2);
+  const activeTeam = scorecardTeam || team1;
+  const teamRows = scorecard.filter(r => r.team === activeTeam);
+  const batters = teamRows.filter(r => r.didBat || r.runs > 0).sort((a, b) => b.runs - a.runs);
+  const bowlers = scorecard.filter(r => r.team !== activeTeam && r.oversBowled > 0).sort((a, b) => b.wickets - a.wickets || a.runsConceded / (a.oversBowled || 1) - b.runsConceded / (b.oversBowled || 1));
+
   return (
     <div>
-      <div className="bg-card rounded-xl p-5 border border-border mb-6">
-        <div className="flex items-start justify-between mb-4">
+      <div className="bg-card rounded-xl border border-border mb-4 overflow-hidden">
+
+        {/* ── Top header: name + status ── */}
+        <div className="flex items-center justify-between px-4 pt-4 pb-2">
           <div>
-            <h1 className="text-xl font-bold">{contest.name}</h1>
-            <p className="text-muted text-sm">by @{contest.creator.username}</p>
+            <h1 className="text-base font-bold leading-tight">{contest.name}</h1>
+            <p className="text-muted text-xs">by @{contest.creator.username}</p>
           </div>
           <span
-            className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+            className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
               contest.status === "OPEN"
                 ? "bg-success/20 text-success"
                 : contest.status === "LOCKED"
@@ -140,115 +199,231 @@ export default function ContestDetailPage() {
           </span>
         </div>
 
-        {(() => {
-          const t1 = getTeamInfo(contest.match.team1);
-          const t2 = getTeamInfo(contest.match.team2);
-          return (
-            <div className="flex items-center gap-3 mb-1">
-              <div className="flex -space-x-1.5">
-                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center ring-2 ring-card shadow-sm overflow-hidden p-0.5">
-                  <img src={t1.logo} alt={t1.initials} className="w-full h-full object-contain" />
-                </div>
-                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center ring-2 ring-card shadow-sm overflow-hidden p-0.5">
-                  <img src={t2.logo} alt={t2.initials} className="w-full h-full object-contain" />
-                </div>
+        {/* ── Scores / match header ── */}
+        <div className="px-4 pb-2">
+          <div className="flex items-center gap-3 mb-0.5">
+            {/* Team logos stacked */}
+            <div className="flex -space-x-1.5 shrink-0">
+              <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center ring-2 ring-card shadow-sm overflow-hidden p-0.5">
+                <img src={t1.logo} alt={t1.initials} className="w-full h-full object-contain" />
               </div>
-              <div className="text-lg font-semibold">
-                {t1.initials} <span className="text-muted">vs</span> {t2.initials}
+              <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center ring-2 ring-card shadow-sm overflow-hidden p-0.5">
+                <img src={t2.logo} alt={t2.initials} className="w-full h-full object-contain" />
               </div>
             </div>
-          );
-        })()}
-        <div className="flex items-center gap-2 flex-wrap text-sm text-muted mb-3">
-          <span>{formatDate(new Date(contest.match.date))} &middot; {contest.match.venue}</span>
-          {!matchStarted && minutesUntil > 0 && (
-            <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full tabular-nums ${
-              minutesUntil <= 60 ? "bg-danger/15 text-danger" : "bg-primary/15 text-primary"
-            }`}>
-              ⏱ {countdown}
-            </span>
-          )}
-          {contest.match.status === "LIVE" && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-danger/15 text-danger">
-              <span className="w-1.5 h-1.5 rounded-full bg-danger animate-pulse" />
-              Live
-            </span>
-          )}
-        </div>
 
-        <div className="grid grid-cols-3 gap-3 text-center mb-4">
-          <div className="bg-background rounded-lg p-3">
-            <div className="text-xs text-muted">Entry Fee</div>
-            <div className="font-bold text-primary">{contest.entryFee} vINR</div>
+            {hasScores ? (
+              <div className="flex items-baseline gap-1.5 flex-1 min-w-0 text-sm font-bold">
+                <span>{t1.initials}</span>
+                {s1 ? <span>{s1.r}/{s1.w} <span className="text-[11px] text-muted font-normal">({s1.o})</span></span> : <span className="text-muted text-xs font-normal">-</span>}
+                <span className="text-muted text-xs font-normal">vs</span>
+                <span>{t2.initials}</span>
+                {s2 ? <span>{s2.r}/{s2.w} <span className="text-[11px] text-muted font-normal">({s2.o})</span></span> : <span className="text-muted text-xs font-normal">-</span>}
+              </div>
+            ) : (
+              <div className="text-base font-bold flex-1">
+                {t1.initials} <span className="text-muted font-normal text-sm">vs</span> {t2.initials}
+              </div>
+            )}
+
+            {/* Live / countdown badge pinned right */}
+            {contest.match.status === "LIVE" ? (
+              <span className="shrink-0 inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-danger/15 text-danger">
+                <span className="w-1.5 h-1.5 rounded-full bg-danger animate-pulse" />
+                Live
+              </span>
+            ) : !matchStarted && minutesUntil > 0 ? (
+              <span className={`shrink-0 inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full tabular-nums ${
+                minutesUntil <= 60 ? "bg-danger/15 text-danger" : "bg-primary/15 text-primary"
+              }`}>
+                ⏱ {countdown}
+              </span>
+            ) : null}
           </div>
-          <div className="bg-background rounded-lg p-3">
-            <div className="text-xs text-muted">Prize Pool</div>
-            <div className="font-bold text-success">
-              {contest.calculatedPrizePool.toFixed(0)} vINR
-            </div>
-          </div>
-          <div className="bg-background rounded-lg p-3">
-            <div className="text-xs text-muted">Players</div>
-            <div className="font-bold">{contest._count.entries}</div>
+
+          {contest.match.result && (
+            <div className="text-[11px] font-semibold text-success mt-0.5">{contest.match.result}</div>
+          )}
+          <div className="text-[11px] text-muted mt-0.5">
+            {formatDate(new Date(contest.match.date))} · {contest.match.venue}
           </div>
         </div>
 
-        <div className="flex items-center gap-2 mb-4">
-          <div className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-center font-mono tracking-widest text-lg">
-            {contest.inviteCode}
+        {/* ── Collapsible scorecard — lives INSIDE the top card ── */}
+        {scorecard.length > 0 && (
+          <details className="group border-t border-border">
+            <summary className="cursor-pointer list-none select-none flex items-center justify-between px-4 py-2 hover:bg-background/50 transition-colors">
+              <span className="text-xs font-semibold text-muted uppercase tracking-wide">Scorecard</span>
+              <span className="text-[10px] text-muted group-open:hidden">▼ Show</span>
+              <span className="text-[10px] text-muted hidden group-open:inline">▲ Hide</span>
+            </summary>
+
+            <div className="px-3 pb-3 space-y-2 bg-background/30">
+              {/* Team tabs */}
+              <div className="flex gap-2 pt-2">
+                {[team1, team2].map(team => (
+                  <button key={team} onClick={() => setScorecardTeam(team)}
+                    className={`flex-1 py-1 rounded-md text-xs font-semibold transition-colors ${activeTeam === team ? "bg-primary text-white" : "bg-card border border-border text-muted"}`}>
+                    {team}
+                  </button>
+                ))}
+              </div>
+
+              {/* Batting */}
+              {batters.length > 0 && (
+                <div className="rounded-lg border border-border overflow-hidden">
+                  <div className="bg-background px-3 py-1.5 text-[10px] font-bold text-muted uppercase tracking-wide">Batting</div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-t border-border text-muted">
+                          <th className="px-3 py-1.5 text-left font-medium">Player</th>
+                          <th className="px-2 py-1.5 text-right font-medium">R</th>
+                          <th className="px-2 py-1.5 text-right font-medium">B</th>
+                          <th className="px-2 py-1.5 text-right font-medium">4s</th>
+                          <th className="px-2 py-1.5 text-right font-medium">6s</th>
+                          <th className="px-2 py-1.5 text-right font-medium">SR</th>
+                          <th className="px-2 py-1.5 text-right font-medium text-primary">Pts</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {batters.map(p => {
+                          const sr = p.ballsFaced > 0 ? ((p.runs / p.ballsFaced) * 100).toFixed(1) : "-";
+                          return (
+                            <tr key={p.playerId} className="border-t border-border">
+                              <td className="px-3 py-1.5"><div className="font-medium">{p.name}</div><div className="text-[9px] text-muted">{p.role}</div></td>
+                              <td className="px-2 py-1.5 text-right font-bold">{p.runs}</td>
+                              <td className="px-2 py-1.5 text-right text-muted">{p.ballsFaced}</td>
+                              <td className="px-2 py-1.5 text-right text-muted">{p.fours}</td>
+                              <td className="px-2 py-1.5 text-right text-muted">{p.sixes}</td>
+                              <td className="px-2 py-1.5 text-right text-muted">{sr}</td>
+                              <td className="px-2 py-1.5 text-right font-semibold text-primary">{p.fantasyPoints.toFixed(0)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Bowling */}
+              {bowlers.length > 0 && (
+                <div className="rounded-lg border border-border overflow-hidden">
+                  <div className="bg-background px-3 py-1.5 text-[10px] font-bold text-muted uppercase tracking-wide">Bowling</div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-t border-border text-muted">
+                          <th className="px-3 py-1.5 text-left font-medium">Player</th>
+                          <th className="px-2 py-1.5 text-right font-medium">O</th>
+                          <th className="px-2 py-1.5 text-right font-medium">M</th>
+                          <th className="px-2 py-1.5 text-right font-medium">R</th>
+                          <th className="px-2 py-1.5 text-right font-medium">W</th>
+                          <th className="px-2 py-1.5 text-right font-medium">Eco</th>
+                          <th className="px-2 py-1.5 text-right font-medium text-primary">Pts</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bowlers.map(p => {
+                          const eco = p.oversBowled > 0 ? (p.runsConceded / p.oversBowled).toFixed(1) : "-";
+                          return (
+                            <tr key={p.playerId} className="border-t border-border">
+                              <td className="px-3 py-1.5"><div className="font-medium">{p.name}</div><div className="text-[9px] text-muted">{p.role}</div></td>
+                              <td className="px-2 py-1.5 text-right text-muted">{p.oversBowled}</td>
+                              <td className="px-2 py-1.5 text-right text-muted">{p.maidens}</td>
+                              <td className="px-2 py-1.5 text-right text-muted">{p.runsConceded}</td>
+                              <td className="px-2 py-1.5 text-right font-bold">{p.wickets}</td>
+                              <td className="px-2 py-1.5 text-right text-muted">{eco}</td>
+                              <td className="px-2 py-1.5 text-right font-semibold text-primary">{p.fantasyPoints.toFixed(0)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {batters.length === 0 && bowlers.length === 0 && (
+                <div className="text-xs text-muted text-center py-3">No stats for {activeTeam} yet</div>
+              )}
+            </div>
+          </details>
+        )}
+
+        {/* ── Compact stats row: Entry Fee · Prize Pool · Players ── */}
+        <div className="flex border-t border-border divide-x divide-border text-center">
+          <div className="flex-1 py-2.5 px-2">
+            <div className="text-[10px] text-muted">Entry</div>
+            <div className="text-sm font-bold text-primary">{contest.entryFee}<span className="text-[10px] font-normal text-muted ml-0.5">vINR</span></div>
           </div>
+          <div className="flex-1 py-2.5 px-2">
+            <div className="text-[10px] text-muted">Prize Pool</div>
+            <div className="text-sm font-bold text-success">{contest.calculatedPrizePool.toFixed(0)}<span className="text-[10px] font-normal text-muted ml-0.5">vINR</span></div>
+          </div>
+          <div className="flex-1 py-2.5 px-2">
+            <div className="text-[10px] text-muted">Teams</div>
+            <div className="text-sm font-bold">{contest._count.entries}</div>
+          </div>
+        </div>
+
+        {/* ── Prize distribution ── */}
+        <div className="border-t border-border px-4 py-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="text-[10px] text-muted uppercase tracking-wide">Prizes</span>
+          {contest.prizeDistribution.map((pd) => (
+            <span key={pd.rank} className="text-xs">
+              <span className="text-muted">#{pd.rank}</span>{" "}
+              <span className="font-semibold text-success">{((contest.calculatedPrizePool * pd.percentage) / 100).toFixed(0)}</span>
+              <span className="text-muted text-[10px]"> vINR</span>
+            </span>
+          ))}
+        </div>
+
+        {/* ── Compact invite code row ── */}
+        <div className="border-t border-border px-4 py-2 flex items-center gap-2">
+          <span className="text-[10px] text-muted uppercase tracking-wide shrink-0">Code</span>
+          <span className="font-mono text-sm font-bold tracking-widest text-foreground flex-1">{contest.inviteCode}</span>
           <button
             onClick={copyInviteCode}
-            className="bg-card border border-border rounded-lg px-3 py-2 text-sm hover:bg-card-hover"
+            className="text-xs px-2.5 py-1 rounded-md bg-background border border-border hover:bg-card-hover transition-colors"
           >
             {copied ? "Copied!" : "Copy"}
           </button>
           <button
             onClick={shareContest}
-            className="bg-secondary text-white rounded-lg px-3 py-2 text-sm hover:bg-secondary/80"
+            className="text-xs px-2.5 py-1 rounded-md bg-secondary text-white hover:bg-secondary/80 transition-colors"
           >
             Share
           </button>
         </div>
 
-        <div className="bg-background rounded-lg p-3 mb-4">
-          <div className="text-xs text-muted mb-2">Prize Distribution</div>
-          <div className="flex gap-3">
-            {contest.prizeDistribution.map((pd) => (
-              <div key={pd.rank} className="text-sm">
-                <span className="text-muted">#{pd.rank}:</span>{" "}
-                <span className="font-semibold">{pd.percentage}%</span>
-                <span className="text-muted text-xs ml-1">
-                  ({((contest.calculatedPrizePool * pd.percentage) / 100).toFixed(0)}T)
-                </span>
+        {/* ── CTA buttons ── */}
+        {(isCreator && !isParticipant && contest.status === "OPEN") || canJoin || canAddTeam ? (
+          <div className="border-t border-border px-4 py-3">
+            {isCreator && !isParticipant && contest.status === "OPEN" && (
+              <div className="text-xs text-primary bg-primary/10 rounded-lg px-3 py-2 mb-2">
+                You created this contest — pick your team to join!
               </div>
-            ))}
+            )}
+            {canJoin && (
+              <button
+                onClick={() => router.push(`/contests/${id}/team`)}
+                className="w-full bg-primary text-white font-semibold rounded-lg py-2.5 hover:bg-primary-hover transition-colors text-sm"
+              >
+                {isCreator ? "Pick My Team & Join" : `Join Contest (${contest.entryFee} vINR)`}
+              </button>
+            )}
+            {canAddTeam && (
+              <button
+                onClick={() => router.push(`/contests/${id}/team`)}
+                className="w-full bg-secondary text-white font-semibold rounded-lg py-2.5 hover:bg-secondary/80 transition-colors text-sm"
+              >
+                Add Another Team
+              </button>
+            )}
           </div>
-        </div>
-
-        {isCreator && !isParticipant && contest.status === "OPEN" && (
-          <div className="bg-primary/10 border border-primary/20 rounded-lg px-4 py-3 mb-3 text-sm text-primary">
-            You created this contest — pick your team to join!
-          </div>
-        )}
-
-        {canJoin && (
-          <button
-            onClick={() => router.push(`/contests/${id}/team`)}
-            className="w-full bg-primary text-white font-semibold rounded-lg py-2.5 hover:bg-primary-hover transition-colors"
-          >
-            {isCreator ? "Pick My Team & Join" : `Join Contest (${contest.entryFee} vINR)`}
-          </button>
-        )}
-
-        {canAddTeam && (
-          <button
-            onClick={() => router.push(`/contests/${id}/team`)}
-            className="w-full bg-secondary text-white font-semibold rounded-lg py-2.5 hover:bg-secondary/80 transition-colors"
-          >
-            Add Another Team
-          </button>
-        )}
+        ) : null}
       </div>
 
       <div className="flex items-center justify-between mb-3">
@@ -377,6 +552,7 @@ export default function ContestDetailPage() {
           ))}
         </div>
       )}
+
     </div>
   );
 }

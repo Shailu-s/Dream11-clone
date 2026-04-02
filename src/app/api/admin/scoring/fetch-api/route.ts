@@ -66,6 +66,18 @@ export async function GET(req: Request) {
     // 4. Parse scorecard
     const playerStats = parseScorecard(apiScorecard, dbPlayers);
 
+    // Save result/scores/toss to match row regardless of autoSave
+    await prisma.match.update({
+      where: { id: matchId },
+      data: {
+        result: apiScorecard.status || null,
+        scores: apiScorecard.score || null,
+        toss: apiScorecard.tossWinner && apiScorecard.tossChoice
+          ? `${apiScorecard.tossWinner} won toss, chose to ${apiScorecard.tossChoice}`
+          : null,
+      },
+    });
+
     // Phase 2: Auto-save if requested
     const autoSave = searchParams.get("autoSave") === "true";
     if (autoSave && playerStats.length > 0) {
@@ -78,34 +90,32 @@ export async function GET(req: Request) {
       });
       const xiMap = new Map(existingRows.map(r => [r.playerId, { isInPlayingXI: r.isInPlayingXI, isImpactPlayer: r.isImpactPlayer }]));
 
-      for (const stat of playerStats) {
+      // Batch upsert all player stats in a single transaction
+      const statsMap = new Map<string, number>();
+      const upsertOps = playerStats.map(stat => {
         const xi = xiMap.get(stat.playerId);
         const fantasyPoints = calculateFantasyPoints({
           ...stat,
           isInPlayingXI: xi?.isInPlayingXI ?? false,
           isImpactPlayer: xi?.isImpactPlayer ?? false,
         });
-        await prisma.playerMatchStats.upsert({
-          where: {
-            playerId_matchId: { playerId: stat.playerId, matchId },
-          },
+        statsMap.set(stat.playerId, fantasyPoints);
+        return prisma.playerMatchStats.upsert({
+          where: { playerId_matchId: { playerId: stat.playerId, matchId } },
           update: { ...stat, fantasyPoints, matchId: undefined, playerId: undefined },
           create: { ...stat, matchId, fantasyPoints },
         });
-      }
-
-      // Recalculate points for all contest entries
-      const statsMap = new Map<string, number>();
-      playerStats.forEach(s => {
-        const xi = xiMap.get(s.playerId);
-        statsMap.set(s.playerId, calculateFantasyPoints({ ...s, isInPlayingXI: xi?.isInPlayingXI ?? false, isImpactPlayer: xi?.isImpactPlayer ?? false }));
       });
 
+      await prisma.$transaction(upsertOps);
+
+      // Recalculate points for all contest entries (batched)
       const contests = await prisma.contest.findMany({
         where: { matchId, status: { in: ["OPEN", "LOCKED"] } },
         include: { entries: true },
       });
 
+      const entryUpdateOps = [];
       for (const contest of contests) {
         for (const entry of contest.entries) {
           const playerSelections = entry.players as Array<{
@@ -114,11 +124,17 @@ export async function GET(req: Request) {
             isViceCaptain: boolean;
           }>;
           const totalPoints = calculateEntryPoints(playerSelections, statsMap);
-          await prisma.contestEntry.update({
-            where: { id: entry.id },
-            data: { totalPoints },
-          });
+          entryUpdateOps.push(
+            prisma.contestEntry.update({
+              where: { id: entry.id },
+              data: { totalPoints },
+            })
+          );
         }
+      }
+
+      if (entryUpdateOps.length > 0) {
+        await prisma.$transaction(entryUpdateOps);
       }
     }
 

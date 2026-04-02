@@ -103,6 +103,9 @@ model Match {
   season    String      @default("IPL 2026")
   cricApiMatchId       String?  @unique
   playingXIConfirmed   Boolean  @default(false)
+  result               String?
+  scores               Json?
+  toss                 String?
   createdAt DateTime    @default(now())
 
   contests         Contest[]

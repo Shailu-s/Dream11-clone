@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { syncMatchStatuses } from "@/lib/match-sync";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status");
   const matchId = searchParams.get("matchId");
-
-  await syncMatchStatuses();
 
   const where = {
     ...(status ? { status: status as "UPCOMING" | "LIVE" | "COMPLETED" } : {}),

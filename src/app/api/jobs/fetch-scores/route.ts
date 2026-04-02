@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { fetchCricScore, fetchScorecard, parseScorecard, isTeamMatch, isMatchEnded, getTotalUsageToday, getBestAvailableKeyIndex } from "@/lib/cricket-api";
+import { fetchCricScore, fetchScorecard, parseScorecard, isTeamMatch, isMatchEnded, getBestAvailableKeyIndex } from "@/lib/cricket-api";
 import { calculateFantasyPoints, calculateEntryPoints } from "@/lib/scoring";
 import { syncMatchStatuses } from "@/lib/match-sync";
 
@@ -35,9 +35,9 @@ export async function GET(req: Request) {
   }
 
   try {
-    // 2. Check API budget before doing anything
-    const bestKeyIndex = await getBestAvailableKeyIndex();
-    const totalUsedToday = await getTotalUsageToday();
+    // 2. Check API budget before doing anything (single DB query — reused below)
+    const { keyIndex: bestKeyIndex, usageMap } = await getBestAvailableKeyIndex();
+    const totalUsedToday = Array.from(usageMap.values()).reduce((s, v) => s + v, 0);
 
     if (bestKeyIndex === -1) {
       // All keys exhausted — log and bail out gracefully
@@ -51,24 +51,47 @@ export async function GET(req: Request) {
       return NextResponse.json({ skipped: true, reason: "API budget exhausted", totalUsedToday });
     }
 
+    // Cached cricScore result for this cron run — avoids hitting the endpoint twice
+    // if multiple matches need ID discovery or if stale-ID rediscovery kicks in.
+    let cachedApiMatches: any[] | undefined;
+    async function getApiMatches(): Promise<any[]> {
+      if (cachedApiMatches !== undefined) return cachedApiMatches;
+      const result = await fetchCricScore(usageMap);
+      cachedApiMatches = result;
+      return result;
+    }
+
     // 3. Sync match statuses — flip UPCOMING → LIVE if date has passed
     await syncMatchStatuses();
 
-    // 4. Find all LIVE matches
+    // 4. Find LIVE matches that have at least one active contest
+    // No point burning API hits on matches nobody created a contest for
     const liveMatches = await prisma.match.findMany({
-      where: { status: "LIVE" },
+      where: {
+        status: "LIVE",
+        contests: { some: { status: { in: ["OPEN", "LOCKED"] } } },
+      },
     });
 
+    // Also count total LIVE matches (including those without contests) for diagnostics
+    const allLiveCount = await prisma.match.count({ where: { status: "LIVE" } });
+
     if (liveMatches.length === 0) {
+      const note = allLiveCount > 0
+        ? `${allLiveCount} LIVE match(es) but none have active contests — skipping API calls`
+        : "No LIVE matches found";
       await prisma.cronLog.create({
         data: {
           skipped: true,
           requestsUsedToday: totalUsedToday,
-          notes: "No LIVE matches found",
+          notes: note,
         },
       });
-      return NextResponse.json({ skipped: true, reason: "No live matches", totalUsedToday });
+      console.log(`[Cron] ${note}`);
+      return NextResponse.json({ skipped: true, reason: note, totalUsedToday });
     }
+
+    console.log(`[Cron] ${liveMatches.length} LIVE match(es) with contests (${allLiveCount} total LIVE). Budget: ${totalUsedToday} hits used today.`);
 
     // 5. Process each live match
     const results = [];
@@ -85,7 +108,7 @@ export async function GET(req: Request) {
         // 5a. Discover API match ID if not cached
         if (!apiMatchId) {
           console.log(`[Cron] Discovering API match ID for ${matchLabel}`);
-          const apiMatches = await fetchCricScore();
+          const apiMatches = await getApiMatches(); // uses cached result — no extra API hit
           const found = apiMatches.find((m: any) => {
             return (
               (isTeamMatch(match.team1, m.t1) && isTeamMatch(match.team2, m.t2)) ||
@@ -105,12 +128,39 @@ export async function GET(req: Request) {
           }
         }
 
-        // 5b. Fetch scorecard
-        const { scorecard: apiScorecard, keyIndex } = await fetchScorecard(apiMatchId as string);
+        // 5b. Fetch scorecard — pass usageMap to avoid re-querying DB and to keep budget in sync
+        // If cached ID is stale/invalid, clear it and rediscover once.
+        let { scorecard: apiScorecard, keyIndex } = await fetchScorecard(apiMatchId as string, usageMap).catch(async (err) => {
+          if (err.message?.includes("not found") || err.message?.includes("invalid")) {
+            console.warn(`[Cron] Cached match ID ${apiMatchId} is stale, clearing and rediscovering...`);
+            await prisma.match.update({ where: { id: match.id }, data: { cricApiMatchId: null } });
+            const apiMatches = await getApiMatches(); // reuses cached result — no extra API hit
+            const found = apiMatches.find((m: any) =>
+              (isTeamMatch(match.team1, m.t1) && isTeamMatch(match.team2, m.t2)) ||
+              (isTeamMatch(match.team1, m.t2) && isTeamMatch(match.team2, m.t1))
+            );
+            if (!found) throw new Error(`Could not rediscover ${matchLabel} on CricAPI`);
+            apiMatchId = found.id;
+            await prisma.match.update({ where: { id: match.id }, data: { cricApiMatchId: apiMatchId } });
+            return fetchScorecard(apiMatchId as string, usageMap);
+          }
+          throw err;
+        });
         keyUsed = keyIndex + 1; // 1-indexed for display
 
         // 5c. Check if match has ended
         matchEndedFlag = isMatchEnded(apiScorecard);
+
+        // 5c2. Save result/scores/toss from API response to match row
+        const matchResult = apiScorecard.status || null;
+        const matchScores = apiScorecard.score || null;
+        const matchToss = apiScorecard.tossWinner && apiScorecard.tossChoice
+          ? `${apiScorecard.tossWinner} won toss, chose to ${apiScorecard.tossChoice}`
+          : null;
+        await prisma.match.update({
+          where: { id: match.id },
+          data: { result: matchResult, scores: matchScores, toss: matchToss },
+        });
 
         // 5d. Get DB players for this match
         const dbPlayers = await prisma.player.findMany({
@@ -124,7 +174,7 @@ export async function GET(req: Request) {
         const playerStats = parseScorecard(apiScorecard, dbPlayers);
         statsCount = playerStats.length;
 
-        // 5f. Upsert all player stats + recalculate fantasy points
+        // 5f. Upsert all player stats + recalculate fantasy points (batched in $transaction)
         // Fetch existing XI/impact flags (set by admin before match)
         const existingRows = await prisma.playerMatchStats.findMany({
           where: { matchId: match.id },
@@ -132,25 +182,35 @@ export async function GET(req: Request) {
         });
         const xiMap = new Map(existingRows.map(r => [r.playerId, { isInPlayingXI: r.isInPlayingXI, isImpactPlayer: r.isImpactPlayer }]));
 
-        for (const stat of playerStats) {
+        // Build upsert ops + collect fantasy points for reuse (avoids BUG-003 re-query)
+        const statsMap = new Map<string, number>();
+        const upsertOps = playerStats.map(stat => {
           const xi = xiMap.get(stat.playerId);
           const fantasyPoints = calculateFantasyPoints({
             ...stat,
             isInPlayingXI: xi?.isInPlayingXI ?? false,
             isImpactPlayer: xi?.isImpactPlayer ?? false,
           });
-          await prisma.playerMatchStats.upsert({
+          statsMap.set(stat.playerId, fantasyPoints);
+          return prisma.playerMatchStats.upsert({
             where: { playerId_matchId: { playerId: stat.playerId, matchId: match.id } },
             update: { ...stat, fantasyPoints, matchId: undefined, playerId: undefined },
             create: { ...stat, matchId: match.id, fantasyPoints },
           });
-        }
+        });
 
-        // 5g. Recalculate totalPoints for all contest entries in this match
-        const allStats = await prisma.playerMatchStats.findMany({ where: { matchId: match.id } });
-        const statsMap = new Map<string, number>();
-        for (const s of allStats) {
-          statsMap.set(s.playerId, s.fantasyPoints);
+        await prisma.$transaction(upsertOps);
+
+        // 5g. Recalculate totalPoints for all contest entries in this match (batched)
+        // Also include points from players NOT in this API fetch (e.g. already in DB from prior cron run)
+        const existingStats = await prisma.playerMatchStats.findMany({
+          where: { matchId: match.id },
+          select: { playerId: true, fantasyPoints: true },
+        });
+        for (const s of existingStats) {
+          if (!statsMap.has(s.playerId)) {
+            statsMap.set(s.playerId, s.fantasyPoints);
+          }
         }
 
         const contests = await prisma.contest.findMany({
@@ -158,6 +218,7 @@ export async function GET(req: Request) {
           include: { entries: true },
         });
 
+        const entryUpdateOps = [];
         for (const contest of contests) {
           for (const entry of contest.entries) {
             const playerSelections = entry.players as Array<{
@@ -166,11 +227,17 @@ export async function GET(req: Request) {
               isViceCaptain: boolean;
             }>;
             const totalPoints = calculateEntryPoints(playerSelections, statsMap);
-            await prisma.contestEntry.update({
-              where: { id: entry.id },
-              data: { totalPoints },
-            });
+            entryUpdateOps.push(
+              prisma.contestEntry.update({
+                where: { id: entry.id },
+                data: { totalPoints },
+              })
+            );
           }
+        }
+
+        if (entryUpdateOps.length > 0) {
+          await prisma.$transaction(entryUpdateOps);
         }
 
         console.log(`[Cron] ${matchLabel}: saved ${statsCount} player stats, matchEnded=${matchEndedFlag}`);
@@ -190,14 +257,14 @@ export async function GET(req: Request) {
         console.error(`[Cron] Error processing ${matchLabel}:`, errorMsg);
       }
 
-      // Log this match's cron run
-      const updatedUsage = await getTotalUsageToday();
+      // Log this match's cron run — compute total from in-memory usageMap (no extra DB query)
+      const currentUsageTotal = Array.from(usageMap.values()).reduce((s, v) => s + v, 0);
       await prisma.cronLog.create({
         data: {
           matchId: match.id,
           matchName: matchLabel,
           apiKeyUsed: keyUsed,
-          requestsUsedToday: updatedUsage,
+          requestsUsedToday: currentUsageTotal,
           matchEnded: matchEndedFlag,
           statsCount,
           error: errorMsg,
@@ -215,12 +282,13 @@ export async function GET(req: Request) {
     }
 
     const elapsed = Date.now() - startedAt;
-    console.log(`[Cron] Done in ${elapsed}ms. Matches processed: ${liveMatches.length}`);
+    const finalUsageTotal = Array.from(usageMap.values()).reduce((s, v) => s + v, 0);
+    console.log(`[Cron] Done in ${elapsed}ms. Matches processed: ${liveMatches.length}. API hits today: ${finalUsageTotal}`);
 
     return NextResponse.json({
       processed: liveMatches.length,
       results,
-      totalUsedToday: await getTotalUsageToday(),
+      totalUsedToday: finalUsageTotal,
       elapsedMs: elapsed,
     });
 

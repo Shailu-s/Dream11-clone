@@ -10,7 +10,8 @@ const API_KEYS = [
   process.env.CRICKET_DATA_API_KEY_3,
 ].filter(Boolean) as string[];
 
-// Stop using a key when it hits this threshold — leaves 10 req buffer for manual admin use
+// Each key is from a separate CricAPI account with its own 100/day limit.
+// Use 90 as safe limit to leave a small buffer for manual admin use.
 const SAFE_LIMIT_PER_KEY = 90;
 
 function isRateLimitError(data: any): boolean {
@@ -64,32 +65,41 @@ export async function getTotalUsageToday(): Promise<number> {
 }
 
 /**
- * Returns the index of the best available key (lowest usage, under safe limit).
- * Returns -1 if all keys are at or above safe limit.
+ * Loads today's usage map from DB once. Used by both getBestAvailableKeyIndex and fetchWithFallback
+ * so we never query the same table twice in one cron run.
  */
-export async function getBestAvailableKeyIndex(): Promise<number> {
+async function loadUsageMap(): Promise<Map<number, number>> {
   const date = utcDateString();
   const usageRecords = await prisma.apiKeyUsage.findMany({ where: { date } });
-  const usageMap = new Map(usageRecords.map(r => [r.keyIndex, r.hitCount]));
+  return new Map(usageRecords.map(r => [r.keyIndex, r.hitCount]));
+}
 
+/**
+ * Returns the index of the best available key (lowest usage, under safe limit).
+ * Returns -1 if all keys are at or above safe limit.
+ * Also returns the usage map so callers can pass it to fetchWithFallback (avoids double DB query).
+ */
+export async function getBestAvailableKeyIndex(): Promise<{ keyIndex: number; usageMap: Map<number, number> }> {
+  const usageMap = await loadUsageMap();
   for (let i = 0; i < API_KEYS.length; i++) {
     const used = usageMap.get(i) ?? 0;
     if (used < SAFE_LIMIT_PER_KEY) {
-      return i;
+      return { keyIndex: i, usageMap };
     }
   }
-  return -1; // all keys exhausted
+  return { keyIndex: -1, usageMap };
 }
 
 /**
  * Tries each API key in sequence, tracking budget.
+ * Accepts a pre-loaded usageMap to avoid re-querying DB when called right after getBestAvailableKeyIndex.
+ * IMPORTANT: The usageMap is mutated in-place after each call so subsequent calls
+ * in the same cron run see accurate counts without re-querying the DB.
  * Skips keys already at safe limit. Only throws if ALL keys are exhausted.
  */
-async function fetchWithFallback(path: string): Promise<{ data: any; keyIndex: number }> {
+async function fetchWithFallback(path: string, existingUsageMap?: Map<number, number>): Promise<{ data: any; keyIndex: number }> {
   const sep = path.includes("?") ? "&" : "?";
-  const date = utcDateString();
-  const usageRecords = await prisma.apiKeyUsage.findMany({ where: { date } });
-  const usageMap = new Map(usageRecords.map(r => [r.keyIndex, r.hitCount]));
+  const usageMap = existingUsageMap ?? await loadUsageMap();
 
   for (let i = 0; i < API_KEYS.length; i++) {
     const used = usageMap.get(i) ?? 0;
@@ -107,13 +117,18 @@ async function fetchWithFallback(path: string): Promise<{ data: any; keyIndex: n
 
     // Always record usage — even rate-limit responses count as a hit
     await recordKeyUsage(i);
+    // Update the in-memory map so subsequent calls in this cron run see the real count
+    usageMap.set(i, (usageMap.get(i) ?? 0) + 1);
 
     if (!isRateLimitError(data)) {
       if (i > 0) console.log(`[CricAPI] Key ${i + 1} succeeded.`);
       return { data, keyIndex: i };
     }
 
-    console.warn(`[CricAPI] Key ${i + 1} hit rate limit (${data.info?.hitsToday ?? "?"}/${data.info?.hitsLimit ?? "?"}). ${i + 1 < API_KEYS.length ? "Trying next key in 2s..." : "All keys exhausted."}`);
+    // CricAPI rejected this key — mark it at safe limit so we don't retry it
+    // (CricAPI's internal counter may be ahead of ours)
+    console.warn(`[CricAPI] Key ${i + 1} hit rate limit (${data.info?.hitsToday ?? "?"}/${data.info?.hitsLimit ?? "?"}). Marking key exhausted.`);
+    usageMap.set(i, SAFE_LIMIT_PER_KEY);
 
     if (i + 1 < API_KEYS.length) {
       await sleep(2000);
@@ -158,16 +173,16 @@ export function isTeamMatch(dbTeam: string, apiTeamName: string): boolean {
   return aliases.some(alias => normalizedApi.includes(alias));
 }
 
-export async function fetchCricScore() {
-  const { data } = await fetchWithFallback("cricScore");
+export async function fetchCricScore(usageMap?: Map<number, number>) {
+  const { data } = await fetchWithFallback("cricScore", usageMap);
   if (data.status !== "success") {
     throw new Error(data.reason || "Failed to fetch matches");
   }
   return data.data || [];
 }
 
-export async function fetchScorecard(matchId: string): Promise<{ scorecard: any; keyIndex: number }> {
-  const { data, keyIndex } = await fetchWithFallback(`match_scorecard?id=${matchId}`);
+export async function fetchScorecard(matchId: string, usageMap?: Map<number, number>): Promise<{ scorecard: any; keyIndex: number }> {
+  const { data, keyIndex } = await fetchWithFallback(`match_scorecard?id=${matchId}`, usageMap);
   if (data.status !== "success") {
     throw new Error(data.reason || "Failed to fetch scorecard");
   }
