@@ -249,16 +249,16 @@ export default function ContestDetailPage() {
           </div>
         </div>
 
-        {/* ── Collapsible scorecard — lives INSIDE the top card ── */}
+        {/* ── Scorecard — open by default when stats exist ── */}
         {scorecard.length > 0 && (
-          <details className="group border-t border-border">
-            <summary className="cursor-pointer list-none select-none flex items-center justify-between px-4 py-2 hover:bg-background/50 transition-colors">
-              <span className="text-xs font-semibold text-muted uppercase tracking-wide">Scorecard</span>
-              <span className="text-[10px] text-muted group-open:hidden">▼ Show</span>
-              <span className="text-[10px] text-muted hidden group-open:inline">▲ Hide</span>
+          <details className="group border-t border-border" open>
+            <summary className="cursor-pointer list-none select-none flex items-center justify-between px-4 py-2.5 bg-primary/5 hover:bg-primary/10 transition-colors">
+              <span className="text-xs font-bold text-primary uppercase tracking-wide">Scorecard</span>
+              <span className="text-[10px] font-semibold text-primary group-open:hidden">▼ Show</span>
+              <span className="text-[10px] font-semibold text-primary hidden group-open:inline">▲ Hide</span>
             </summary>
 
-            <div className="px-3 pb-3 space-y-2 bg-background/30">
+            <div className="px-3 pb-3 space-y-2 bg-primary/[0.02]">
               {/* Team tabs */}
               <div className="flex gap-2 pt-2">
                 {[team1, team2].map(team => (
@@ -271,8 +271,8 @@ export default function ContestDetailPage() {
 
               {/* Batting */}
               {batters.length > 0 && (
-                <div className="rounded-lg border border-border overflow-hidden">
-                  <div className="bg-background px-3 py-1.5 text-[10px] font-bold text-muted uppercase tracking-wide">Batting</div>
+                <div className="rounded-lg border border-primary/20 overflow-hidden">
+                  <div className="bg-primary/10 px-3 py-1.5 text-[10px] font-bold text-primary uppercase tracking-wide">Batting</div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
                       <thead>
@@ -283,7 +283,7 @@ export default function ContestDetailPage() {
                           <th className="px-2 py-1.5 text-right font-medium">4s</th>
                           <th className="px-2 py-1.5 text-right font-medium">6s</th>
                           <th className="px-2 py-1.5 text-right font-medium">SR</th>
-                          <th className="px-2 py-1.5 text-right font-medium text-primary">Pts</th>
+                          <th className="px-2 py-1.5 text-right font-bold text-primary bg-primary/5">Pts</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -297,7 +297,7 @@ export default function ContestDetailPage() {
                               <td className="px-2 py-1.5 text-right text-muted">{p.fours}</td>
                               <td className="px-2 py-1.5 text-right text-muted">{p.sixes}</td>
                               <td className="px-2 py-1.5 text-right text-muted">{sr}</td>
-                              <td className="px-2 py-1.5 text-right font-semibold text-primary">{p.fantasyPoints.toFixed(0)}</td>
+                              <td className="px-2 py-1.5 text-right font-bold text-primary bg-primary/5">{p.fantasyPoints.toFixed(0)}</td>
                             </tr>
                           );
                         })}
@@ -309,8 +309,8 @@ export default function ContestDetailPage() {
 
               {/* Bowling */}
               {bowlers.length > 0 && (
-                <div className="rounded-lg border border-border overflow-hidden">
-                  <div className="bg-background px-3 py-1.5 text-[10px] font-bold text-muted uppercase tracking-wide">Bowling</div>
+                <div className="rounded-lg border border-secondary/20 overflow-hidden">
+                  <div className="bg-secondary/10 px-3 py-1.5 text-[10px] font-bold text-secondary uppercase tracking-wide">Bowling</div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
                       <thead>
@@ -321,7 +321,7 @@ export default function ContestDetailPage() {
                           <th className="px-2 py-1.5 text-right font-medium">R</th>
                           <th className="px-2 py-1.5 text-right font-medium">W</th>
                           <th className="px-2 py-1.5 text-right font-medium">Eco</th>
-                          <th className="px-2 py-1.5 text-right font-medium text-primary">Pts</th>
+                          <th className="px-2 py-1.5 text-right font-bold text-primary bg-primary/5">Pts</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -335,7 +335,7 @@ export default function ContestDetailPage() {
                               <td className="px-2 py-1.5 text-right text-muted">{p.runsConceded}</td>
                               <td className="px-2 py-1.5 text-right font-bold">{p.wickets}</td>
                               <td className="px-2 py-1.5 text-right text-muted">{eco}</td>
-                              <td className="px-2 py-1.5 text-right font-semibold text-primary">{p.fantasyPoints.toFixed(0)}</td>
+                              <td className="px-2 py-1.5 text-right font-bold text-primary bg-primary/5">{p.fantasyPoints.toFixed(0)}</td>
                             </tr>
                           );
                         })}
