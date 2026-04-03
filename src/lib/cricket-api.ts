@@ -265,6 +265,7 @@ function findDbPlayer(apiName: string, apiTeam: string, dbPlayers: Player[]): Pl
   return null;
 }
 
+
 export function parseScorecard(apiData: any, dbPlayers: Player[]) {
   const scorecard = apiData.scorecard || [];
   const teams = apiData.teams || []; // [Team1, Team2]
@@ -300,6 +301,7 @@ export function parseScorecard(apiData: any, dbPlayers: Player[]) {
         lbwBowled: 0,
         didBat: false,
         isOut: false,
+        dismissal: null as string | null,
       };
 
       stats.runs = b.r;
@@ -307,7 +309,9 @@ export function parseScorecard(apiData: any, dbPlayers: Player[]) {
       stats.fours = b["4s"];
       stats.sixes = b["6s"];
       stats.didBat = true;
-      stats.isOut = b.dismissal && b.dismissal !== "not out";
+      // "dismissal-text" is the pre-formatted string from CricAPI e.g. "c Head b Muzarabani", "not out", "run out (Roy)"
+      stats.dismissal = b["dismissal-text"] || null;
+      stats.isOut = !!(b["dismissal-text"] && b["dismissal-text"] !== "not out");
       
       statsMap.set(player.id, stats);
     });
@@ -335,6 +339,7 @@ export function parseScorecard(apiData: any, dbPlayers: Player[]) {
         lbwBowled: 0,
         didBat: false,
         isOut: false,
+        dismissal: null as string | null,
       };
 
       stats.oversBowled = bw.o;
@@ -371,6 +376,7 @@ export function parseScorecard(apiData: any, dbPlayers: Player[]) {
         lbwBowled: 0,
         didBat: false,
         isOut: false,
+        dismissal: null as string | null,
       };
 
       stats.catches += (c.catch || 0) + (c.cb || 0); // cb = caught and bowled

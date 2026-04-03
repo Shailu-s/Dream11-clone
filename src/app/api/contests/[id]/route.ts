@@ -56,6 +56,8 @@ export async function GET(
     runOutsDirect: s.runOutsDirect,
     runOutsIndirect: s.runOutsIndirect,
     didBat: s.didBat,
+    isOut: s.isOut,
+    dismissal: s.dismissal,
     isInPlayingXI: s.isInPlayingXI,
     fantasyPoints: s.fantasyPoints,
   })) : [];

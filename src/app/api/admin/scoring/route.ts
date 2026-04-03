@@ -86,8 +86,10 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ message: "Stats saved and points updated" });
-  } catch {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  } catch (e: any) {
+    const msg = e.message || "Failed to save stats";
+    const status = msg.includes("Forbidden") || msg.includes("Unauthorized") ? 403 : 500;
+    return NextResponse.json({ error: msg }, { status });
   }
 }
 

@@ -238,6 +238,7 @@ model PlayerMatchStats {
   lbwBowled       Int     @default(0)
   didBat          Boolean @default(false)
   isOut           Boolean @default(false)
+  dismissal       String?
   isInPlayingXI   Boolean @default(false)
   isProbableXI    Boolean @default(false)
   isImpactPlayer  Boolean @default(false)

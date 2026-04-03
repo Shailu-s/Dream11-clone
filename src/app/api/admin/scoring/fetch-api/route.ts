@@ -148,6 +148,8 @@ export async function GET(req: Request) {
 
   } catch (error: any) {
     console.error("Fetch API Error:", error);
-    return NextResponse.json({ error: error.message || "Forbidden" }, { status: 403 });
+    const msg = error.message || String(error) || "Unknown error";
+    const status = msg.includes("Forbidden") || msg.includes("Unauthorized") ? 403 : 500;
+    return NextResponse.json({ error: msg }, { status });
   }
 }

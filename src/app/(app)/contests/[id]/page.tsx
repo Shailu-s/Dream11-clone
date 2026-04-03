@@ -53,6 +53,8 @@ interface ScorecardRow {
   runOutsDirect: number;
   runOutsIndirect: number;
   didBat: boolean;
+  isOut: boolean;
+  dismissal: string | null;
   isInPlayingXI: boolean;
   fantasyPoints: number;
 }
@@ -71,6 +73,8 @@ export default function ContestDetailPage() {
   const [joinError, setJoinError] = useState("");
   const [scorecard, setScorecard] = useState<ScorecardRow[]>([]);
   const [scorecardTeam, setScorecardTeam] = useState<string | null>(null);
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareSelection, setCompareSelection] = useState<string[]>([]);
 
   const loadContest = (c: typeof id) => {
     return fetch(`/api/contests/${c}`)
@@ -289,9 +293,19 @@ export default function ContestDetailPage() {
                       <tbody>
                         {batters.map(p => {
                           const sr = p.ballsFaced > 0 ? ((p.runs / p.ballsFaced) * 100).toFixed(1) : "-";
+                          const notOut = p.dismissal === "not out";
                           return (
                             <tr key={p.playerId} className="border-t border-border">
-                              <td className="px-3 py-1.5"><div className="font-medium">{p.name}</div><div className="text-[9px] text-muted">{p.role}</div></td>
+                              <td className="px-3 py-1.5">
+                                <div className="font-medium">{p.name}</div>
+                                {p.dismissal ? (
+                                  <div className={`text-[9px] ${notOut ? "text-success font-semibold" : "text-muted"}`}>
+                                    {p.dismissal}
+                                  </div>
+                                ) : (
+                                  <div className="text-[9px] text-muted">{p.role}</div>
+                                )}
+                              </td>
                               <td className="px-2 py-1.5 text-right font-bold">{p.runs}</td>
                               <td className="px-2 py-1.5 text-right text-muted">{p.ballsFaced}</td>
                               <td className="px-2 py-1.5 text-right text-muted">{p.fours}</td>
@@ -430,12 +444,26 @@ export default function ContestDetailPage() {
         <h2 className="text-lg font-semibold">
           {contest.status === "COMPLETED" ? "Final Leaderboard" : "Participants"}
         </h2>
-        {contest.match.status === "LIVE" && (
-          <span className="text-xs text-danger flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-danger animate-pulse" />
-            Live scores
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {contest.match.status === "LIVE" && (
+            <span className="text-xs text-danger flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-danger animate-pulse" />
+              Live scores
+            </span>
+          )}
+          {matchStarted && contest.entries.length >= 2 && (
+            <button
+              onClick={() => { setCompareMode(!compareMode); setCompareSelection([]); }}
+              className={`text-xs px-2.5 py-1 rounded-md border transition-colors ${
+                compareMode
+                  ? "bg-primary text-white border-primary"
+                  : "bg-card border-border text-muted hover:text-foreground"
+              }`}
+            >
+              {compareMode ? "Cancel" : "Compare"}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Phatka messages — only for completed contests */}
@@ -500,36 +528,58 @@ export default function ContestDetailPage() {
         </div>
       )}
 
+      {/* Compare mode floating bar */}
+      {compareMode && (
+        <div className="bg-card border border-primary/30 rounded-xl px-4 py-2.5 mb-3 flex items-center justify-between">
+          <div className="text-xs text-muted">
+            {compareSelection.length === 0 && "Tap 2 teams to compare"}
+            {compareSelection.length === 1 && "Tap 1 more team"}
+            {compareSelection.length === 2 && "Ready to compare!"}
+          </div>
+          {compareSelection.length === 2 && (
+            <button
+              onClick={() => router.push(`/contests/${id}/compare?entry1=${compareSelection[0]}&entry2=${compareSelection[1]}`)}
+              className="bg-primary text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-primary-hover transition-colors"
+            >
+              Compare
+            </button>
+          )}
+        </div>
+      )}
+
       {contest.entries.length === 0 ? (
         <div className="text-muted bg-card rounded-xl p-6 text-center">
           No entries yet. Share the invite code with friends!
         </div>
       ) : (
         <div className="space-y-2">
-          {contest.entries.map((entry, i) => (
-            <Link
-              key={entry.id}
-              href={`/contests/${id}/entry/${entry.id}`}
-              className={`bg-card rounded-lg p-3 border border-border flex items-center justify-between hover:bg-card-hover transition-colors ${
-                entry.userId === userId ? "border-primary/50" : ""
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                    entry.rank === 1
-                      ? "bg-primary/20 text-primary"
-                      : entry.rank === 2
-                      ? "bg-muted/30 text-foreground"
-                      : entry.rank === 3
-                      ? "bg-primary/10 text-primary/70"
-                      : "bg-background text-muted"
-                  }`}
-                >
-                  {entry.rank || i + 1}
-                </span>
-                <div>
-                  <div className="text-sm font-medium">
+          {contest.entries.map((entry, i) => {
+            const isSelected = compareSelection.includes(entry.id);
+            const entryContent = (
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                {compareMode ? (
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 shrink-0 transition-colors ${
+                    isSelected ? "bg-primary border-primary text-white" : "bg-background border-border text-muted"
+                  }`}>
+                    {isSelected ? "✓" : ""}
+                  </div>
+                ) : (
+                  <span
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+                      entry.rank === 1
+                        ? "bg-primary/20 text-primary"
+                        : entry.rank === 2
+                        ? "bg-muted/30 text-foreground"
+                        : entry.rank === 3
+                        ? "bg-primary/10 text-primary/70"
+                        : "bg-background text-muted"
+                    }`}
+                  >
+                    {entry.rank || i + 1}
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate">
                     {entry.teamName}
                     {entry.userId === userId && (
                       <span className="text-primary text-xs ml-1">(You)</span>
@@ -538,18 +588,60 @@ export default function ContestDetailPage() {
                   <div className="text-xs text-muted">@{entry.user.username}</div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="font-semibold text-sm">
-                  {entry.totalPoints.toFixed(1)} pts
-                </div>
-                {entry.prizeWon > 0 && (
-                  <div className="text-xs text-success font-semibold">
-                    +{entry.prizeWon.toFixed(0)} vINR
+            );
+
+            if (compareMode) {
+              return (
+                <button
+                  key={entry.id}
+                  onClick={() => {
+                    setCompareSelection(prev => {
+                      if (prev.includes(entry.id)) return prev.filter(id => id !== entry.id);
+                      if (prev.length >= 2) return [prev[1], entry.id];
+                      return [...prev, entry.id];
+                    });
+                  }}
+                  className={`w-full bg-card rounded-lg p-3 border flex items-center justify-between hover:bg-card-hover transition-colors text-left ${
+                    isSelected ? "border-primary" : "border-border"
+                  } ${entry.userId === userId ? "border-primary/50" : ""}`}
+                >
+                  {entryContent}
+                  <div className="text-right shrink-0">
+                    <div className="font-semibold text-sm">
+                      {entry.totalPoints.toFixed(1)} pts
+                    </div>
+                    {entry.prizeWon > 0 && (
+                      <div className="text-xs text-success font-semibold">
+                        +{entry.prizeWon.toFixed(0)} vINR
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </Link>
-          ))}
+                </button>
+              );
+            }
+
+            return (
+              <Link
+                key={entry.id}
+                href={`/contests/${id}/entry/${entry.id}`}
+                className={`bg-card rounded-lg p-3 border border-border flex items-center justify-between hover:bg-card-hover transition-colors ${
+                  entry.userId === userId ? "border-primary/50" : ""
+                }`}
+              >
+                {entryContent}
+                <div className="text-right shrink-0">
+                  <div className="font-semibold text-sm">
+                    {entry.totalPoints.toFixed(1)} pts
+                  </div>
+                  {entry.prizeWon > 0 && (
+                    <div className="text-xs text-success font-semibold">
+                      +{entry.prizeWon.toFixed(0)} vINR
+                    </div>
+                  )}
+                </div>
+              </Link>
+            );
+          })}
         </div>
       )}
 

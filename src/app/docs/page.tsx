@@ -138,7 +138,7 @@ export default async function DocsPage() {
                     ["Wicket Keepers", "1–4"],
                     ["Batters", "3–6"],
                     ["All-Rounders", "1–4"],
-                    ["Bowlers", "3–6"],
+                    ["Bowlers", "2–6"],
                     ["Total players", "11"],
                   ].map(([role, rule]) => (
                     <div key={role} className="flex justify-between text-sm">
