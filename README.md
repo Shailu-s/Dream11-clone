@@ -124,6 +124,7 @@ Admin email is set via `ADMIN_EMAIL` env var. On first signup with that email, t
 
 - **No prisma migrations folder** — using `prisma db push` style (schema sync). For prod, run raw SQL on Supabase manually before deploying schema changes.
 - **No real payment gateway** — tokens are virtual. Users pay admin via UPI externally, admin approves requests manually in the admin panel.
+- **No signup bonus** — new users start with `0` vINR and must add balance through the wallet flow before entering paid contests.
 - **No live scores** — CricAPI is used only to fill historical/completed scorecard data after matches. Users check Cricbuzz for live scores themselves.
 - **Auth** — JWT-based sessions (not Supabase Auth). OTPs sent via Brevo email.
 - **Team visibility** — other players' teams are hidden until the match starts (enforced server-side).

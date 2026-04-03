@@ -170,11 +170,8 @@ export default async function DocsPage() {
               1 vINR = ₹1 in real value. All entry fees, prizes, and payouts happen in vINR.
               Real money moves outside the app via UPI between you and the admin.
             </p>
-            <Note type="success">
-              🎁 Every new user gets <span className="font-bold">100 vINR free</span> as a joining bonus when they sign up. No payment needed to start playing.
-            </Note>
-            <Note type="warning">
-              🔒 A minimum of <span className="font-bold">100 vINR is always locked</span> in your wallet — this is your joining bonus and cannot be withdrawn. You can only withdraw funds earned beyond this 100 vINR floor.
+            <Note type="info">
+              New users start with <span className="font-bold">0 vINR</span>. Add balance from the wallet before joining paid contests.
             </Note>
           </Card>
         </Section>
@@ -217,10 +214,8 @@ export default async function DocsPage() {
             <Step n={4} color="secondary" title="If rejected">
               Your held vINR is returned to your balance automatically.
             </Step>
-            <Note type="warning">
-              🔒 You can only withdraw funds <span className="font-bold">above 100 vINR</span>. The first 100 vINR (your joining bonus) is permanently locked and non-withdrawable.
-              <br /><br />
-              Example: If your balance is 340 vINR, you can withdraw up to 240 vINR.
+            <Note type="info">
+              You can request withdrawal for any available vINR balance in your wallet, subject to admin approval.
             </Note>
           </Card>
         </Section>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import RecentFormButton from "@/components/RecentFormButton";
 
 interface SavedTeam {
   id: string;
@@ -18,6 +19,8 @@ interface Player {
   isInPlayingXI?: boolean;
   isProbableXI?: boolean;
   isImpactPlayer?: boolean;
+  recentFantasyPoints?: number[];
+  recentFantasyAvg?: number | null;
 }
 
 interface Selection {
@@ -523,8 +526,12 @@ export default function TeamSelectionPage() {
                     )}
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <div className="font-medium text-sm">{player.name}</div>
+                      <RecentFormButton
+                        average={player.recentFantasyAvg ?? null}
+                        points={player.recentFantasyPoints ?? []}
+                      />
                       {player.isInPlayingXI && (
                         <span className="text-[9px] font-bold text-success uppercase bg-success/10 px-1 rounded border border-success/20">
                           Playing

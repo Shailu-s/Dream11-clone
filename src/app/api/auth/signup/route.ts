@@ -46,17 +46,6 @@ export async function POST(req: Request) {
       username,
       passwordHash,
       role: isAdmin ? "ADMIN" : "USER",
-      tokenBalance: 100,
-    },
-  });
-
-  await prisma.tokenTransaction.create({
-    data: {
-      userId: user.id,
-      type: "BUY_REQUEST",
-      amount: 100,
-      status: "APPROVED",
-      adminNote: "Signup bonus",
     },
   });
 
