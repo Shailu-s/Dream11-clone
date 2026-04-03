@@ -42,7 +42,7 @@ export async function POST(
       where: { contestId: id, userId: user.id, teamName: teamName.trim() },
     });
     if (existingEntry) {
-      return NextResponse.json({ error: "You already have a team with this name in this contest. Choose a different name." }, { status: 400 });
+      return NextResponse.json({ error: "This team name already exists in this contest. Choose a different name." }, { status: 400 });
     }
 
     // Check balance

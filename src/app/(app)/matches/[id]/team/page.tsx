@@ -34,6 +34,7 @@ export default function MatchTeamBuilderPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [selections, setSelections] = useState<Selection[]>([]);
   const [teamName, setTeamName] = useState("");
+  const [suggestedTeamName, setSuggestedTeamName] = useState("");
   const [step, setStep] = useState<"select" | "captain">("select");
   const [filterRole, setFilterRole] = useState("ALL");
   const [filterTeam, setFilterTeam] = useState("ALL");
@@ -45,33 +46,35 @@ export default function MatchTeamBuilderPage() {
 
   useEffect(() => {
     async function load() {
-      const [matchRes, playersRes] = await Promise.all([
+      const [matchRes, playersRes, teamsRes] = await Promise.all([
         fetch(`/api/matches?matchId=${matchId}`),
         fetch(`/api/players?matchId=${matchId}`),
+        fetch(`/api/teams?matchId=${matchId}`),
       ]);
       const matchData = await matchRes.json();
       const playersData = await playersRes.json();
+      const teamsData = await teamsRes.json();
 
       const match = (matchData.matches || []).find((m: { id: string }) => m.id === matchId);
       if (!match) { setLoading(false); return; }
       setMatchInfo({ team1: match.team1, team2: match.team2, playingXIConfirmed: match.playingXIConfirmed ?? false });
       setPlayers(playersData.players || []);
+      setSuggestedTeamName(teamsData.suggestedTeamName || "");
 
       // If editing an existing saved team, load it
       if (editTeamId) {
-        const teamRes = await fetch(`/api/teams?matchId=${matchId}`);
-        const teamData = await teamRes.json();
-        const found = (teamData.teams || []).find((t: { id: string }) => t.id === editTeamId);
+        const found = (teamsData.teams || []).find((t: { id: string }) => t.id === editTeamId);
         if (found) {
           setSelections(found.players || []);
           setTeamName(found.teamName || "");
         }
+      } else {
+        setTeamName(teamsData.suggestedTeamName || "");
       }
 
       setLoading(false);
     }
     load();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchId, editTeamId]);
 
   const selectedPlayers = players.filter((p) => selections.some((s) => s.playerId === p.id));
@@ -266,7 +269,7 @@ export default function MatchTeamBuilderPage() {
         <h1 className="text-xl font-bold">{editTeamId ? "Edit Team" : "Build Your Team"}</h1>
         {selections.length > 0 && (
           <button
-            onClick={() => { setSelections([]); setTeamName(""); setSelectionError(""); }}
+            onClick={() => { setSelections([]); setTeamName(suggestedTeamName); setSelectionError(""); }}
             className="text-xs text-danger hover:underline"
           >
             Clear
@@ -280,7 +283,7 @@ export default function MatchTeamBuilderPage() {
           type="text"
           value={teamName}
           onChange={(e) => setTeamName(e.target.value)}
-          placeholder="Team name * (e.g. Dream XI)"
+          placeholder="Team name *"
           className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
           maxLength={30}
         />

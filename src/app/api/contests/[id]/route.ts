@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getNextDefaultTeamName } from "@/lib/team-names";
 
 export async function GET(
   req: Request,
@@ -35,6 +36,22 @@ export async function GET(
     include: { player: { select: { name: true, team: true, role: true } } },
   });
 
+  const suggestedTeamName = user
+    ? getNextDefaultTeamName(
+        user.username,
+        [
+          ...(await prisma.contestEntry.findMany({
+            where: { userId: user.id },
+            select: { teamName: true },
+          })).map((entry) => entry.teamName),
+          ...(await prisma.savedTeam.findMany({
+            where: { userId: user.id },
+            select: { teamName: true },
+          })).map((team) => team.teamName),
+        ]
+      )
+    : null;
+
   // Only include if we actually have performance data (not just XI flags)
   const hasStats = statsRows.some(s => s.runs > 0 || s.wickets > 0 || s.catches > 0 || s.stumpings > 0 || s.fantasyPoints > 0);
 
@@ -67,6 +84,7 @@ export async function GET(
     isParticipant: user ? contest.entries.some((e) => e.userId === user.id) : false,
     isCreator: user ? contest.creatorId === user.id : false,
     userId: user?.id,
+    suggestedTeamName,
     scorecard,
   });
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getNextDefaultTeamName } from "@/lib/team-names";
 
 // GET /api/teams?matchId=... — list user's saved teams (optionally filtered by match)
 export async function GET(req: Request) {
@@ -27,7 +28,18 @@ export async function GET(req: Request) {
       orderBy: { updatedAt: "desc" },
     });
 
-    return NextResponse.json({ teams });
+    const suggestedTeamName = getNextDefaultTeamName(
+      user.username,
+      [
+        ...(await prisma.contestEntry.findMany({
+          where: { userId: user.id },
+          select: { teamName: true },
+        })).map((entry) => entry.teamName),
+        ...teams.map((team) => team.teamName),
+      ]
+    );
+
+    return NextResponse.json({ teams, suggestedTeamName });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed to fetch teams";
     return NextResponse.json({ error: msg }, { status: 500 });

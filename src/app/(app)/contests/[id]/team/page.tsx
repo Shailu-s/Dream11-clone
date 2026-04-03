@@ -33,7 +33,6 @@ export default function TeamSelectionPage() {
   const { id } = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const savedTeamId = searchParams.get("savedTeamId");
   const editEntryId = searchParams.get("editEntryId");
   const [contest, setContest] = useState<{
     match: { team1: string; team2: string; id: string };
@@ -43,6 +42,7 @@ export default function TeamSelectionPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [selections, setSelections] = useState<Selection[]>([]);
   const [teamName, setTeamName] = useState("");
+  const [suggestedTeamName, setSuggestedTeamName] = useState("");
   const [step, setStep] = useState<"pick" | "select" | "captain">("pick");
   const [savedTeams, setSavedTeams] = useState<SavedTeam[]>([]);
   const [filterRole, setFilterRole] = useState<string>("ALL");
@@ -59,6 +59,7 @@ export default function TeamSelectionPage() {
       const contestRes = await fetch(`/api/contests/${id}`);
       const contestData = await contestRes.json();
       setContest(contestData.contest);
+      setSuggestedTeamName(contestData.suggestedTeamName || "");
 
       const matchId = contestData.contest.match.id;
       const [playersRes, teamsRes] = await Promise.all([
@@ -91,6 +92,10 @@ export default function TeamSelectionPage() {
         setStep("select");
       }
       // else stay on "pick" step to show saved teams
+
+      if (!editEntryId) {
+        setTeamName(contestData.suggestedTeamName || "");
+      }
 
       setLoading(false);
     }
@@ -182,7 +187,7 @@ export default function TeamSelectionPage() {
   function clearDraft() {
     try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
     setSelections([]);
-    setTeamName("");
+    setTeamName(suggestedTeamName);
     setSelectionError("");
   }
 
@@ -405,7 +410,7 @@ export default function TeamSelectionPage() {
           type="text"
           value={teamName}
           onChange={(e) => setTeamName(e.target.value)}
-          placeholder="Team name * (e.g. Dream XI)"
+          placeholder="Team name *"
           className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
           maxLength={30}
         />

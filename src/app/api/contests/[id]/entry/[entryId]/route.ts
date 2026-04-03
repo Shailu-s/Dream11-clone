@@ -105,7 +105,7 @@ export async function PUT(
         where: { contestId, userId: user.id, teamName: newTeamName, id: { not: entryId } },
       });
       if (dupe) {
-        return NextResponse.json({ error: "You already have a team with this name in this contest." }, { status: 400 });
+        return NextResponse.json({ error: "This team name already exists in this contest." }, { status: 400 });
       }
     }
 
