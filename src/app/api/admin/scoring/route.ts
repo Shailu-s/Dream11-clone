@@ -1,7 +1,19 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { calculateFantasyPoints, calculateEntryPoints } from "@/lib/scoring";
+import { calculateFantasyPoints, calculateEntryPoints, calculateContestPlacements } from "@/lib/scoring";
+
+const MAX_SERIALIZABLE_RETRIES = 3;
+
+class AdminScoringError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
 
 export async function GET(req: Request) {
   try {
@@ -86,8 +98,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ message: "Stats saved and points updated" });
-  } catch (e: any) {
-    const msg = e.message || "Failed to save stats";
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Failed to save stats";
     const status = msg.includes("Forbidden") || msg.includes("Unauthorized") ? 403 : 500;
     return NextResponse.json({ error: msg }, { status });
   }
@@ -113,100 +125,104 @@ export async function PUT(req: Request) {
       statsMap.set(s.playerId, s.fantasyPoints);
     }
 
-    // Get all contests for this match
-    const contests = await prisma.contest.findMany({
+    const contestIds = await prisma.contest.findMany({
       where: { matchId, status: { in: ["LOCKED", "OPEN"] } },
-      include: { entries: true },
+      select: { id: true },
     });
 
-    for (const contest of contests) {
-      // Calculate points for each entry
-      for (const entry of contest.entries) {
-        const playerSelections = entry.players as Array<{
-          playerId: string;
-          isCaptain: boolean;
-          isViceCaptain: boolean;
-        }>;
-        const totalPoints = calculateEntryPoints(playerSelections, statsMap);
+    for (const { id: contestId } of contestIds) {
+      await withSerializableRetry(async () => {
+        await prisma.$transaction(
+          async (tx) => {
+            const contest = await tx.contest.findUnique({
+              where: { id: contestId },
+              include: { entries: true },
+            });
 
-        await prisma.contestEntry.update({
-          where: { id: entry.id },
-          data: { totalPoints },
-        });
-      }
+            if (!contest) {
+              throw new AdminScoringError("Contest not found during finalize", 404);
+            }
 
-      // Rank entries
-      const sortedEntries = contest.entries
-        .map((e) => ({
-          ...e,
-          totalPoints: calculateEntryPoints(
-            e.players as Array<{
-              playerId: string;
-              isCaptain: boolean;
-              isViceCaptain: boolean;
-            }>,
-            statsMap
-          ),
-        }))
-        .sort((a, b) => b.totalPoints - a.totalPoints);
+            const sortedEntries = contest.entries
+              .map((e) => ({
+                ...e,
+                totalPoints: calculateEntryPoints(
+                  e.players as Array<{
+                    playerId: string;
+                    isCaptain: boolean;
+                    isViceCaptain: boolean;
+                  }>,
+                  statsMap
+                ),
+              }))
+              .sort((a, b) => b.totalPoints - a.totalPoints);
 
-      // Calculate prize pool
-      const prizePool = contest.entryFee * contest.entries.length * (1 - contest.platformCutPct / 100);
-      const distribution = contest.prizeDistribution as Array<{
-        rank: number;
-        percentage: number;
-      }>;
+            const prizePool = contest.entryFee * contest.entries.length * (1 - contest.platformCutPct / 100);
+            const distribution = contest.prizeDistribution as Array<{
+              rank: number;
+              percentage: number;
+            }>;
 
-      // Only pay out ranks that have participants; redistribute unclaimed % to rank 1
-      const numEntries = sortedEntries.length;
-      const claimedDistribution = distribution.filter((d) => d.rank <= numEntries);
-      const claimedPct = claimedDistribution.reduce((sum, d) => sum + d.percentage, 0);
-      const unclaimedPct = 100 - claimedPct;
+            const claimed = await tx.contest.updateMany({
+              where: { id: contestId, status: { in: ["LOCKED", "OPEN"] } },
+              data: { status: "COMPLETED", prizePool },
+            });
 
-      // Build effective distribution: rank 1 absorbs all unclaimed percentage
-      const effectiveDistribution = claimedDistribution.map((d) => ({
-        rank: d.rank,
-        percentage: d.rank === 1 ? d.percentage + unclaimedPct : d.percentage,
-      }));
+            if (claimed.count === 0) {
+              return;
+            }
 
-      // Assign ranks and prizes
-      for (let i = 0; i < sortedEntries.length; i++) {
-        const rank = i + 1;
-        const prizeDist = effectiveDistribution.find((d) => d.rank === rank);
-        const prizeWon = prizeDist ? (prizePool * prizeDist.percentage) / 100 : 0;
+            for (const entry of sortedEntries) {
+              await tx.contestEntry.update({
+                where: { id: entry.id },
+                data: { totalPoints: entry.totalPoints },
+              });
+            }
 
-        await prisma.contestEntry.update({
-          where: { id: sortedEntries[i].id },
-          data: { rank, prizeWon },
-        });
+            const placements = calculateContestPlacements(
+              sortedEntries.map((entry) => ({
+                id: entry.id,
+                userId: entry.userId,
+                totalPoints: entry.totalPoints,
+              })),
+              prizePool,
+              distribution
+            );
 
-        // Credit prize to winner
-        if (prizeWon > 0) {
-          await prisma.$transaction([
-            prisma.user.update({
-              where: { id: sortedEntries[i].userId },
-              data: { tokenBalance: { increment: prizeWon } },
-            }),
-            prisma.tokenTransaction.create({
-              data: {
-                userId: sortedEntries[i].userId,
-                type: "CONTEST_PRIZE",
-                amount: prizeWon,
-                status: "APPROVED",
-              },
-            }),
-          ]);
-        }
-      }
+            for (const tiedEntry of placements) {
+              await tx.contestEntry.update({
+                where: { id: tiedEntry.id },
+                data: { rank: tiedEntry.rank, prizeWon: tiedEntry.prizeWon },
+              });
 
-      // Mark contest as completed
-      await prisma.contest.update({
-        where: { id: contest.id },
-        data: { status: "COMPLETED", prizePool },
+              if (tiedEntry.prizeWon > 0) {
+                await tx.user.update({
+                  where: { id: tiedEntry.userId },
+                  data: { tokenBalance: { increment: tiedEntry.prizeWon } },
+                });
+              }
+            }
+
+            const prizeTransactions = placements
+              .filter((entry) => entry.prizeWon > 0)
+              .map((entry) => ({
+                userId: entry.userId,
+                type: "CONTEST_PRIZE" as const,
+                amount: entry.prizeWon,
+                status: "APPROVED" as const,
+              }));
+
+            if (prizeTransactions.length > 0) {
+              await tx.tokenTransaction.createMany({
+                data: prizeTransactions,
+              });
+            }
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+        );
       });
     }
 
-    // Mark match as completed
     await prisma.match.update({
       where: { id: matchId },
       data: { status: "COMPLETED" },
@@ -215,7 +231,28 @@ export async function PUT(req: Request) {
     return NextResponse.json({ message: "Scoring complete, prizes distributed" });
   } catch (e) {
     console.error("[finalize scoring]", e);
+    if (e instanceof AdminScoringError) {
+      return NextResponse.json({ error: e.message }, { status: e.status });
+    }
     const msg = e instanceof Error ? e.message : "Server error";
     return NextResponse.json({ error: msg }, { status: 500 });
   }
+}
+
+async function withSerializableRetry<T>(fn: () => Promise<T>): Promise<T> {
+  let attempt = 0;
+  while (true) {
+    try {
+      return await fn();
+    } catch (err) {
+      attempt += 1;
+      if (!isSerializableConflict(err) || attempt >= MAX_SERIALIZABLE_RETRIES) {
+        throw err;
+      }
+    }
+  }
+}
+
+function isSerializableConflict(err: unknown): boolean {
+  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2034";
 }

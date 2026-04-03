@@ -100,3 +100,71 @@ export function calculateEntryPoints(
   }
   return total;
 }
+
+export function calculateContestPlacements(
+  entries: Array<{
+    id: string;
+    userId: string;
+    totalPoints: number;
+  }>,
+  prizePool: number,
+  distribution: Array<{
+    rank: number;
+    percentage: number;
+  }>
+) {
+  const sortedEntries = [...entries].sort((a, b) => b.totalPoints - a.totalPoints);
+  const numEntries = sortedEntries.length;
+  const claimedDistribution = distribution.filter((d) => d.rank <= numEntries);
+  const claimedPct = claimedDistribution.reduce((sum, d) => sum + d.percentage, 0);
+  const unclaimedPct = 100 - claimedPct;
+  const effectiveDistribution = claimedDistribution.map((d) => ({
+    rank: d.rank,
+    percentage: d.rank === 1 ? d.percentage + unclaimedPct : d.percentage,
+  }));
+
+  const placements: Array<{
+    id: string;
+    userId: string;
+    totalPoints: number;
+    rank: number;
+    prizeWon: number;
+  }> = [];
+
+  let position = 1;
+  let index = 0;
+
+  while (index < sortedEntries.length) {
+    const groupPoints = sortedEntries[index].totalPoints;
+    const tieGroup = [sortedEntries[index]];
+    index += 1;
+
+    while (index < sortedEntries.length && sortedEntries[index].totalPoints === groupPoints) {
+      tieGroup.push(sortedEntries[index]);
+      index += 1;
+    }
+
+    const occupiedRanks = Array.from(
+      { length: tieGroup.length },
+      (_, offset) => position + offset
+    );
+    const combinedPrizePct = occupiedRanks.reduce((sum, rank) => {
+      const prizeDist = effectiveDistribution.find((d) => d.rank === rank);
+      return sum + (prizeDist?.percentage || 0);
+    }, 0);
+    const prizeWonPerEntry =
+      tieGroup.length > 0 ? (prizePool * combinedPrizePct) / 100 / tieGroup.length : 0;
+
+    for (const tiedEntry of tieGroup) {
+      placements.push({
+        ...tiedEntry,
+        rank: position,
+        prizeWon: prizeWonPerEntry,
+      });
+    }
+
+    position += tieGroup.length;
+  }
+
+  return placements;
+}

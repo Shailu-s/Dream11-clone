@@ -12,11 +12,32 @@ export async function GET(
 
   const contest = await prisma.contest.findUnique({
     where: { id },
-    include: {
+    select: {
+      id: true,
+      creatorId: true,
+      matchId: true,
+      name: true,
+      entryFee: true,
+      prizePool: true,
+      platformCutPct: true,
+      prizeDistribution: true,
+      maxParticipants: true,
+      inviteCode: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
       match: true,
       creator: { select: { username: true } },
       entries: {
-        include: { user: { select: { username: true } } },
+        select: {
+          id: true,
+          teamName: true,
+          totalPoints: true,
+          rank: true,
+          prizeWon: true,
+          userId: true,
+          user: { select: { username: true } },
+        },
         orderBy: { totalPoints: "desc" },
       },
       _count: { select: { entries: true } },

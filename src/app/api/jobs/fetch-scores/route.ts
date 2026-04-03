@@ -1,8 +1,23 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { fetchCricScore, fetchScorecard, parseScorecard, isTeamMatch, isMatchEnded, getBestAvailableKeyIndex } from "@/lib/cricket-api";
 import { calculateFantasyPoints, calculateEntryPoints } from "@/lib/scoring";
 import { syncMatchStatuses } from "@/lib/match-sync";
+
+type ApiMatchSummary = {
+  id: string;
+  t1: string;
+  t2: string;
+};
+
+type ApiScorecard = {
+  status?: string;
+  score?: unknown;
+  tossWinner?: string;
+  tossChoice?: string;
+  matchEnded?: boolean;
+};
 
 /**
  * GET /api/jobs/fetch-scores
@@ -35,34 +50,22 @@ export async function GET(req: Request) {
   }
 
   try {
-    // 2. Check API budget before doing anything (single DB query — reused below)
+    // 2. Sync match statuses — flip UPCOMING → LIVE if date has passed
+    await syncMatchStatuses();
+
+    // 3. Check API budget before score sync work (single DB query — reused below)
     const { keyIndex: bestKeyIndex, usageMap } = await getBestAvailableKeyIndex();
     const totalUsedToday = Array.from(usageMap.values()).reduce((s, v) => s + v, 0);
 
-    if (bestKeyIndex === -1) {
-      // All keys exhausted — log and bail out gracefully
-      await prisma.cronLog.create({
-        data: {
-          skipped: true,
-          notes: `All API keys exhausted for today. Total hits: ${totalUsedToday}`,
-        },
-      });
-      console.warn(`[Cron] Skipped — all API keys exhausted (${totalUsedToday} total hits today)`);
-      return NextResponse.json({ skipped: true, reason: "API budget exhausted", totalUsedToday });
-    }
-
     // Cached cricScore result for this cron run — avoids hitting the endpoint twice
     // if multiple matches need ID discovery or if stale-ID rediscovery kicks in.
-    let cachedApiMatches: any[] | undefined;
-    async function getApiMatches(): Promise<any[]> {
+    let cachedApiMatches: ApiMatchSummary[] | undefined;
+    async function getApiMatches(): Promise<ApiMatchSummary[]> {
       if (cachedApiMatches !== undefined) return cachedApiMatches;
-      const result = await fetchCricScore(usageMap);
+      const result = await fetchCricScore(usageMap) as ApiMatchSummary[];
       cachedApiMatches = result;
       return result;
     }
-
-    // 3. Sync match statuses — flip UPCOMING → LIVE if date has passed
-    await syncMatchStatuses();
 
     // 4. Find LIVE matches that have at least one active contest
     // No point burning API hits on matches nobody created a contest for
@@ -75,6 +78,21 @@ export async function GET(req: Request) {
 
     // Also count total LIVE matches (including those without contests) for diagnostics
     const allLiveCount = await prisma.match.count({ where: { status: "LIVE" } });
+
+    if (bestKeyIndex === -1) {
+      await prisma.cronLog.create({
+        data: {
+          skipped: true,
+          notes: `All API keys exhausted for today. Total hits: ${totalUsedToday}`,
+        },
+      });
+      console.warn(`[Cron] Score sync skipped — all API keys exhausted (${totalUsedToday} total hits today)`);
+      return NextResponse.json({
+        skipped: true,
+        reason: "API budget exhausted",
+        totalUsedToday,
+      });
+    }
 
     if (liveMatches.length === 0) {
       const note = allLiveCount > 0
@@ -109,7 +127,7 @@ export async function GET(req: Request) {
         if (!apiMatchId) {
           console.log(`[Cron] Discovering API match ID for ${matchLabel}`);
           const apiMatches = await getApiMatches(); // uses cached result — no extra API hit
-          const found = apiMatches.find((m: any) => {
+          const found = apiMatches.find((m) => {
             return (
               (isTeamMatch(match.team1, m.t1) && isTeamMatch(match.team2, m.t2)) ||
               (isTeamMatch(match.team1, m.t2) && isTeamMatch(match.team2, m.t1))
@@ -130,12 +148,12 @@ export async function GET(req: Request) {
 
         // 5b. Fetch scorecard — pass usageMap to avoid re-querying DB and to keep budget in sync
         // If cached ID is stale/invalid, clear it and rediscover once.
-        let { scorecard: apiScorecard, keyIndex } = await fetchScorecard(apiMatchId as string, usageMap).catch(async (err) => {
+        const { scorecard: rawApiScorecard, keyIndex } = await fetchScorecard(apiMatchId as string, usageMap).catch(async (err) => {
           if (err.message?.includes("not found") || err.message?.includes("invalid")) {
             console.warn(`[Cron] Cached match ID ${apiMatchId} is stale, clearing and rediscovering...`);
             await prisma.match.update({ where: { id: match.id }, data: { cricApiMatchId: null } });
             const apiMatches = await getApiMatches(); // reuses cached result — no extra API hit
-            const found = apiMatches.find((m: any) =>
+            const found = apiMatches.find((m) =>
               (isTeamMatch(match.team1, m.t1) && isTeamMatch(match.team2, m.t2)) ||
               (isTeamMatch(match.team1, m.t2) && isTeamMatch(match.team2, m.t1))
             );
@@ -146,6 +164,7 @@ export async function GET(req: Request) {
           }
           throw err;
         });
+        const apiScorecard = rawApiScorecard as ApiScorecard;
         keyUsed = keyIndex + 1; // 1-indexed for display
 
         // 5c. Check if match has ended
@@ -153,7 +172,7 @@ export async function GET(req: Request) {
 
         // 5c2. Save result/scores/toss from API response to match row
         const matchResult = apiScorecard.status || null;
-        const matchScores = apiScorecard.score || null;
+        const matchScores = apiScorecard.score ?? Prisma.JsonNull;
         const matchToss = apiScorecard.tossWinner && apiScorecard.tossChoice
           ? `${apiScorecard.tossWinner} won toss, chose to ${apiScorecard.tossChoice}`
           : null;

@@ -1,8 +1,20 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { validatePlayerSelections } from "@/lib/player-utils";
 import { calculateEntryPoints } from "@/lib/scoring";
+
+const MAX_SERIALIZABLE_RETRIES = 3;
+
+class ContestEntryValidationError extends Error {
+  status: number;
+
+  constructor(message: string, status = 400) {
+    super(message);
+    this.status = status;
+  }
+}
 
 export async function POST(
   req: Request,
@@ -13,41 +25,9 @@ export async function POST(
     const { id } = await params;
     const { players, teamName } = await req.json();
 
-    // Get contest
-    const contest = await prisma.contest.findUnique({
-      where: { id },
-      include: { match: true, _count: { select: { entries: true } } },
-    });
-
-    if (!contest || contest.status !== "OPEN") {
-      return NextResponse.json({ error: "Contest not available" }, { status: 400 });
-    }
-
-    // Check if match has already started (time-based guard)
-    if (contest.match.date <= new Date()) {
-      return NextResponse.json({ error: "Match has already started" }, { status: 400 });
-    }
-
-    if (contest.maxParticipants && contest._count.entries >= contest.maxParticipants) {
-      return NextResponse.json({ error: "Contest is full" }, { status: 400 });
-    }
-
     // Require team name
     if (!teamName || !teamName.trim()) {
       return NextResponse.json({ error: "Team name is required" }, { status: 400 });
-    }
-
-    // Check for duplicate team name in this contest (same user)
-    const existingEntry = await prisma.contestEntry.findFirst({
-      where: { contestId: id, userId: user.id, teamName: teamName.trim() },
-    });
-    if (existingEntry) {
-      return NextResponse.json({ error: "This team name already exists in this contest. Choose a different name." }, { status: 400 });
-    }
-
-    // Check balance
-    if (user.tokenBalance < contest.entryFee) {
-      return NextResponse.json({ error: "Insufficient tokens" }, { status: 400 });
     }
 
     // Validate team
@@ -56,60 +36,117 @@ export async function POST(
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
-    // Auto-save team to SavedTeam (upsert: if same name+match exists, update players)
-    const existingSavedTeam = await prisma.savedTeam.findFirst({
-      where: { userId: user.id, matchId: contest.matchId, teamName: teamName.trim() },
-    });
-
-    // Deduct entry fee, create entry, and auto-save team in a transaction
     const trimmedName = teamName.trim();
-    const matchId = contest.matchId;
-    const savedTeamId = existingSavedTeam?.id;
-    const userId = user.id;
-    const entryFee = contest.entryFee;
+    await withSerializableRetry(async () => {
+      await prisma.$transaction(
+        async (tx) => {
+          const contest = await tx.contest.findUnique({
+            where: { id },
+            include: { match: true },
+          });
 
-    // Check if stats already exist for this match — calculate points immediately
-    const existingStats = await prisma.playerMatchStats.findMany({
-      where: { matchId },
-      select: { playerId: true, fantasyPoints: true },
-    });
-    const statsMap = new Map(existingStats.map((s) => [s.playerId, s.fantasyPoints]));
-    const initialPoints = existingStats.length > 0
-      ? calculateEntryPoints(players, statsMap)
-      : 0;
+          if (!contest || contest.status !== "OPEN") {
+            throw new ContestEntryValidationError("Contest not available");
+          }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.user.update({
-        where: { id: userId },
-        data: { tokenBalance: { decrement: entryFee } },
-      });
-      await tx.tokenTransaction.create({
-        data: { userId, type: "CONTEST_ENTRY", amount: entryFee, status: "APPROVED" },
-      });
-      await tx.contestEntry.create({
-        data: { contestId: id, userId, teamName: trimmedName, players, totalPoints: initialPoints },
-      });
-      await tx.contest.update({
-        where: { id },
-        data: { prizePool: { increment: entryFee } },
-      });
-      if (savedTeamId) {
-        await tx.savedTeam.update({ where: { id: savedTeamId }, data: { players } });
-      } else {
-        await tx.savedTeam.create({
-          data: { userId, matchId, teamName: trimmedName, players },
-        });
-      }
+          if (contest.match.date <= new Date()) {
+            throw new ContestEntryValidationError("Match has already started");
+          }
+
+          const existingCount = await tx.contestEntry.count({
+            where: { contestId: id },
+          });
+          if (contest.maxParticipants && existingCount >= contest.maxParticipants) {
+            throw new ContestEntryValidationError("Contest is full");
+          }
+
+          const existingStats = await tx.playerMatchStats.findMany({
+            where: { matchId: contest.matchId },
+            select: { playerId: true, fantasyPoints: true },
+          });
+          const statsMap = new Map(existingStats.map((s) => [s.playerId, s.fantasyPoints]));
+          const initialPoints = existingStats.length > 0
+            ? calculateEntryPoints(players, statsMap)
+            : 0;
+
+          const balanceUpdate = await tx.user.updateMany({
+            where: { id: user.id, tokenBalance: { gte: contest.entryFee } },
+            data: { tokenBalance: { decrement: contest.entryFee } },
+          });
+          if (balanceUpdate.count === 0) {
+            throw new ContestEntryValidationError("Insufficient tokens");
+          }
+
+          await tx.tokenTransaction.create({
+            data: { userId: user.id, type: "CONTEST_ENTRY", amount: contest.entryFee, status: "APPROVED" },
+          });
+          await tx.contestEntry.create({
+            data: { contestId: id, userId: user.id, teamName: trimmedName, players, totalPoints: initialPoints },
+          });
+          await tx.contest.update({
+            where: { id },
+            data: { prizePool: { increment: contest.entryFee } },
+          });
+
+          const updatedSavedTeams = await tx.savedTeam.updateMany({
+            where: { userId: user.id, matchId: contest.matchId, teamName: trimmedName },
+            data: { players },
+          });
+          if (updatedSavedTeams.count === 0) {
+            await tx.savedTeam.create({
+              data: { userId: user.id, matchId: contest.matchId, teamName: trimmedName, players },
+            });
+          }
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      );
     });
 
     return NextResponse.json({ message: "Team submitted successfully" });
   } catch (err) {
+    if (err instanceof ContestEntryValidationError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    if (isContestEntryNameConflict(err)) {
+      return NextResponse.json({ error: "This team name already exists in this contest. Choose a different name." }, { status: 400 });
+    }
     const msg = err instanceof Error ? err.message : "Server error";
-    // requireAuth throws on unauthenticated; other errors are server-side
     if (msg === "Unauthorized" || msg === "Forbidden") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (isSerializableConflict(err)) {
+      return NextResponse.json({ error: "This contest was updated while you were joining. Please try again." }, { status: 409 });
     }
     console.error("[contest enter]", err);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
+}
+
+async function withSerializableRetry<T>(fn: () => Promise<T>): Promise<T> {
+  let attempt = 0;
+  while (true) {
+    try {
+      return await fn();
+    } catch (err) {
+      attempt += 1;
+      if (!isSerializableConflict(err) || attempt >= MAX_SERIALIZABLE_RETRIES) {
+        throw err;
+      }
+    }
+  }
+}
+
+function isSerializableConflict(err: unknown): boolean {
+  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2034";
+}
+
+function isContestEntryNameConflict(err: unknown): boolean {
+  return (
+    err instanceof Prisma.PrismaClientKnownRequestError &&
+    err.code === "P2002" &&
+    Array.isArray(err.meta?.target) &&
+    err.meta.target.includes("contestId") &&
+    err.meta.target.includes("userId") &&
+    err.meta.target.includes("teamName")
+  );
 }

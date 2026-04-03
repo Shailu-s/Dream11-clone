@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getSession, requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { validatePlayerSelections, resolvePlayerDetails } from "@/lib/player-utils";
@@ -125,6 +126,16 @@ export async function PUT(
 
     return NextResponse.json({ message: "Team updated" });
   } catch (err) {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002" &&
+      Array.isArray(err.meta?.target) &&
+      err.meta.target.includes("contestId") &&
+      err.meta.target.includes("userId") &&
+      err.meta.target.includes("teamName")
+    ) {
+      return NextResponse.json({ error: "This team name already exists in this contest." }, { status: 400 });
+    }
     const msg = err instanceof Error ? err.message : "Failed to update team";
     return NextResponse.json({ error: msg }, { status: 500 });
   }
