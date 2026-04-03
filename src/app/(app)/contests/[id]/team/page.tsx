@@ -539,7 +539,7 @@ export default function TeamSelectionPage() {
                       )}
                       {player.isProbableXI && !player.isInPlayingXI && (
                         <span className="text-[9px] font-bold text-amber-500 uppercase bg-amber-500/10 px-1 rounded border border-amber-500/20">
-                          Probable
+                          Last Match XI
                         </span>
                       )}
                       {player.isImpactPlayer && (

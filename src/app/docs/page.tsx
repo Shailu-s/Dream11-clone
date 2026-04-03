@@ -1,12 +1,30 @@
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
 
+function slugify(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 function Section({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) {
+  const id = slugify(title);
+
   return (
-    <section className="mb-14">
-      <div className="flex items-center gap-3 mb-5">
+    <section id={id} className="mb-14 scroll-mt-24">
+      <div className="flex items-center gap-3 mb-5 group">
         <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center text-lg">{icon}</div>
-        <h2 className="text-xl font-bold">{title}</h2>
+        <div className="flex items-center gap-2 flex-wrap">
+          <h2 className="text-xl font-bold">{title}</h2>
+          <Link
+            href={`/docs#${id}`}
+            aria-label={`Link to ${title}`}
+            className="text-xs font-semibold text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity border border-primary/20 bg-primary/10 rounded-full px-2 py-0.5"
+          >
+            #
+          </Link>
+        </div>
       </div>
       {children}
     </section>
@@ -55,6 +73,17 @@ export default async function DocsPage() {
   const user = await getSession();
   const ctaHref = user ? "/dashboard" : "/login";
   const ctaLabel = user ? "Go to Dashboard" : "Play Now";
+  const sections = [
+    "What is WGF?",
+    "Joining a Contest",
+    "Team Selection Rules",
+    "What is vINR?",
+    "Depositing vINR",
+    "Withdrawing vINR",
+    "Fantasy Points Scoring",
+    "After the Match",
+  ];
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Nav */}
@@ -76,6 +105,24 @@ export default async function DocsPage() {
           <p className="text-muted text-base leading-relaxed">
             WGF is a private fantasy cricket platform built for friend groups. Pick your XI, outsmart your crew, and walk away with the pot — or get absolutely fucked trying.
           </p>
+        </div>
+
+        <div className="mb-14 bg-card border border-border rounded-2xl p-5">
+          <div className="text-xs uppercase tracking-[0.24em] text-muted font-semibold mb-3">Jump To</div>
+          <div className="flex flex-wrap gap-2">
+            {sections.map((title) => {
+              const id = slugify(title);
+              return (
+                <Link
+                  key={id}
+                  href={`/docs#${id}`}
+                  className="text-xs font-semibold bg-background border border-border rounded-full px-3 py-1.5 text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-colors"
+                >
+                  {title}
+                </Link>
+              );
+            })}
+          </div>
         </div>
 
         {/* What is WGF */}

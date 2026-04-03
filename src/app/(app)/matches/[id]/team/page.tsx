@@ -358,7 +358,7 @@ export default function MatchTeamBuilderPage() {
                     )}
                     {player.isProbableXI && !matchInfo?.playingXIConfirmed && (
                       <span className="bg-amber-500/20 text-amber-500 text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest border border-amber-500/30">
-                        Probable XI
+                        Last Match XI
                       </span>
                     )}
                     {player.isImpactPlayer && (

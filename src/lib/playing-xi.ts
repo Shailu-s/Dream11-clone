@@ -436,6 +436,151 @@ export async function maybeAutoConfirmPlayingXI(match: Match): Promise<{
   };
 }
 
+async function getLastConfirmedXIPlayerIds(team: string, season: string, beforeDate: Date): Promise<string[]> {
+  const previousXIStats = await prisma.playerMatchStats.findMany({
+    where: {
+      isInPlayingXI: true,
+      player: { team, season },
+      match: {
+        status: "COMPLETED",
+        season,
+        date: { lt: beforeDate },
+      },
+    },
+    select: {
+      playerId: true,
+      matchId: true,
+      match: {
+        select: {
+          date: true,
+        },
+      },
+    },
+    orderBy: [{ match: { date: "desc" } }],
+  });
+
+  const grouped = new Map<string, string[]>();
+  for (const row of previousXIStats) {
+    const existing = grouped.get(row.matchId) ?? [];
+    existing.push(row.playerId);
+    grouped.set(row.matchId, existing);
+  }
+
+  for (const playerIds of grouped.values()) {
+    const uniquePlayerIds = [...new Set(playerIds)];
+    if (uniquePlayerIds.length === 11) {
+      return uniquePlayerIds;
+    }
+  }
+
+  return [];
+}
+
+async function seedLastMatchXIForTeam(match: Match, team: string): Promise<{
+  updated: boolean;
+  reason?: string;
+  seededCount?: number;
+}> {
+  const alreadySeeded = await prisma.playerMatchStats.count({
+    where: {
+      matchId: match.id,
+      isProbableXI: true,
+      player: { team, season: match.season },
+    },
+  });
+
+  if (alreadySeeded > 0) {
+    return { updated: false, reason: "already_seeded" };
+  }
+
+  const lastXIPlayerIds = await getLastConfirmedXIPlayerIds(team, match.season, match.date);
+  if (lastXIPlayerIds.length !== 11) {
+    return { updated: false, reason: "no_last_match_xi" };
+  }
+
+  const validPlayers = await prisma.player.findMany({
+    where: {
+      id: { in: lastXIPlayerIds },
+      team,
+      season: match.season,
+    },
+    select: { id: true },
+  });
+
+  if (validPlayers.length !== 11) {
+    return { updated: false, reason: "missing_current_team_players" };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.playerMatchStats.updateMany({
+      where: {
+        matchId: match.id,
+        player: { team, season: match.season },
+      },
+      data: {
+        isProbableXI: false,
+      },
+    });
+
+    await Promise.all(
+      validPlayers.map((player) =>
+        tx.playerMatchStats.upsert({
+          where: { playerId_matchId: { playerId: player.id, matchId: match.id } },
+          update: {
+            isProbableXI: true,
+          },
+          create: {
+            playerId: player.id,
+            matchId: match.id,
+            isProbableXI: true,
+          },
+        })
+      )
+    );
+  }, { isolationLevel: "Serializable" });
+
+  return { updated: true, seededCount: validPlayers.length };
+}
+
+export async function runLastMatchXISync(now = new Date()) {
+  const windowEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const matches = await prisma.match.findMany({
+    where: {
+      status: "UPCOMING",
+      playingXIConfirmed: false,
+      date: { gte: now, lte: windowEnd },
+    },
+    orderBy: { date: "asc" },
+  });
+
+  const results: Array<{
+    match: string;
+    teams: Array<{ team: string; updated: boolean; reason?: string; seededCount?: number }>;
+  }> = [];
+
+  for (const match of matches) {
+    const team1Result = await seedLastMatchXIForTeam(match, match.team1);
+    const team2Result = await seedLastMatchXIForTeam(match, match.team2);
+
+    results.push({
+      match: `${match.team1} vs ${match.team2}`,
+      teams: [
+        { team: match.team1, ...team1Result },
+        { team: match.team2, ...team2Result },
+      ],
+    });
+  }
+
+  return {
+    processed: matches.length,
+    updatedTeams: results.reduce(
+      (sum, result) => sum + result.teams.filter((team) => team.updated).length,
+      0
+    ),
+    results,
+  };
+}
+
 export async function runAutoPlayingXISync(now = new Date()) {
   const lineupWindowStart = new Date(now.getTime() - 30 * 60 * 1000);
   const lineupWindowEnd = new Date(now.getTime() + 45 * 60 * 1000);
