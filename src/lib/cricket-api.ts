@@ -233,7 +233,7 @@ function normalizeName(name: string): string {
  */
 function findDbPlayer(apiName: string, apiTeam: string, dbPlayers: Player[]): Player | null {
   const normalizedApiName = normalizeName(apiName);
-  
+
   // Filter dbPlayers by team if possible
   const teamPlayers = dbPlayers.filter(p => isTeamMatch(p.team, apiTeam));
   const candidates = teamPlayers.length > 0 ? teamPlayers : dbPlayers;
@@ -251,13 +251,25 @@ function findDbPlayer(apiName: string, apiTeam: string, dbPlayers: Player[]): Pl
   if (apiParts.length >= 2) {
     const lastName = apiParts[apiParts.length - 1];
     const firstInitial = apiParts[0][0];
-    
+
     found = candidates.find(p => {
       const dbNorm = normalizeName(p.name).split(" ");
       if (dbNorm.length < 2) return false;
       const dbLast = dbNorm[dbNorm.length - 1];
       const dbFirstInitial = dbNorm[0][0];
       return dbLast === lastName && dbFirstInitial === firstInitial;
+    });
+    if (found) return found;
+  }
+
+  // 4. Token-set match — handles reversed names like "Vyshak Vijaykumar" vs "Vijaykumar Vyshak"
+  // Safe: candidates are already team-filtered, and token collisions within one team are near-impossible
+  const apiTokens = new Set(normalizedApiName.split(" ").filter(t => t.length > 1));
+  if (apiTokens.size >= 2) {
+    found = candidates.find(p => {
+      const dbTokens = normalizeName(p.name).split(" ").filter(t => t.length > 1);
+      if (dbTokens.length < 2) return false;
+      return dbTokens.every(t => apiTokens.has(t)) && dbTokens.length === apiTokens.size;
     });
     if (found) return found;
   }

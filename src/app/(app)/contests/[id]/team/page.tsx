@@ -52,6 +52,8 @@ export default function TeamSelectionPage() {
   const [filterTeam, setFilterTeam] = useState<string>("ALL");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [teamSaved, setTeamSaved] = useState(false);
   const [error, setError] = useState("");
   const [selectionError, setSelectionError] = useState(""); // inline error on player list
 
@@ -192,6 +194,29 @@ export default function TeamSelectionPage() {
     setSelections([]);
     setTeamName(suggestedTeamName);
     setSelectionError("");
+  }
+
+  async function handleSaveTeam() {
+    if (!contest) return;
+    setSaving(true);
+    setError("");
+    const res = await fetch("/api/teams", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchId: contest.match.id, teamName, players: selections }),
+    });
+    const data = await res.json();
+    setSaving(false);
+    if (!res.ok) {
+      // If duplicate name, it's already saved — treat as success
+      if (res.status === 400 && data.error?.includes("already")) {
+        setTeamSaved(true);
+      } else {
+        setError(data.error || "Failed to save team");
+      }
+      return;
+    }
+    setTeamSaved(true);
   }
 
   async function handleSubmit() {
@@ -364,7 +389,25 @@ export default function TeamSelectionPage() {
           })}
         </div>
 
-        {error && <p className="text-danger text-sm mb-3">{error}</p>}
+        {error && (
+          <div className="mb-3">
+            <p className="text-danger text-sm">{error}</p>
+            {error.toLowerCase().includes("insufficient") && (
+              <a
+                href="/tokens"
+                className="text-xs text-primary underline mt-1 inline-block"
+              >
+                Add tokens &rarr;
+              </a>
+            )}
+          </div>
+        )}
+
+        {teamSaved && (
+          <div className="bg-success/10 border border-success/30 text-success text-sm rounded-lg px-3 py-2 mb-3">
+            Team saved!
+          </div>
+        )}
 
         <div className="flex gap-3">
           <button
@@ -373,9 +416,18 @@ export default function TeamSelectionPage() {
           >
             Back
           </button>
+          {!editEntryId && (
+            <button
+              onClick={handleSaveTeam}
+              disabled={saving || submitting}
+              className="flex-1 bg-card border border-border font-semibold rounded-lg py-2.5 hover:bg-card-hover disabled:opacity-50 transition-colors"
+            >
+              {saving ? "Saving..." : teamSaved ? "Saved ✓" : "Save Team"}
+            </button>
+          )}
           <button
             onClick={handleSubmit}
-            disabled={submitting}
+            disabled={submitting || saving}
             className="flex-1 bg-primary text-white font-semibold rounded-lg py-2.5 hover:bg-primary-hover disabled:opacity-50 transition-colors"
           >
             {submitting
