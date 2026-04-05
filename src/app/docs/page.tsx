@@ -183,7 +183,7 @@ export default async function DocsPage() {
                 <div className="space-y-1.5">
                   {[
                     ["Wicket Keepers", "1–4"],
-                    ["Batters", "3–6"],
+                    ["Batters", "2–6"],
                     ["All-Rounders", "1–4"],
                     ["Bowlers", "2–6"],
                     ["Total players", "11"],
