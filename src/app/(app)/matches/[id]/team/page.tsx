@@ -23,7 +23,7 @@ interface Selection {
   isViceCaptain: boolean;
 }
 
-const ROLE_MIN: Record<string, number> = { WK: 1, BAT: 3, AR: 1, BOWL: 2 };
+const ROLE_MIN: Record<string, number> = { WK: 1, BAT: 2, AR: 1, BOWL: 2 };
 const ROLE_MAX: Record<string, number> = { WK: 4, BAT: 6, AR: 4, BOWL: 6 };
 
 export default function MatchTeamBuilderPage() {
