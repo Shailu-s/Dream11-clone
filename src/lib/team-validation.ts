@@ -50,7 +50,7 @@ export function validateTeam(
   const bowl = roleCounts.get("BOWL") || 0;
 
   if (wk < 1 || wk > 4) errors.push(`Wicketkeepers: need 1-4 (have ${wk})`);
-  if (bat < 3 || bat > 6) errors.push(`Batsmen: need 3-6 (have ${bat})`);
+  if (bat < 2 || bat > 6) errors.push(`Batsmen: need 2-6 (have ${bat})`);
   if (ar < 1 || ar > 4) errors.push(`All-rounders: need 1-4 (have ${ar})`);
   if (bowl < 2 || bowl > 6) errors.push(`Bowlers: need 2-6 (have ${bowl})`);
 
