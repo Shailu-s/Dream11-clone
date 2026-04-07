@@ -1113,7 +1113,7 @@ export default function AdminPage() {
                   {(match.status === "UPCOMING" || match.status === "LIVE") && (
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <span className="text-xs text-muted">Delay lock:</span>
-                      {[30, 60, 90].map((mins) => (
+                      {[30, 60, 90, 120, 150, 180].map((mins) => (
                         <button
                           key={mins}
                           onClick={() => handleExtendLock(match.id, mins)}

@@ -12,6 +12,7 @@ interface Match {
   date: string;
   venue: string;
   status: string;
+  lockTime?: string | null;
 }
 
 interface Contest {
@@ -48,7 +49,7 @@ export default function MatchDetailPage() {
   const [joinError, setJoinError] = useState("");
   const [showJoinInput, setShowJoinInput] = useState(false);
 
-  const matchDate = match ? new Date(match.date) : null;
+  const matchDate = match ? new Date(match.lockTime ?? match.date) : null;
   const { countdown, minutesUntil } = useCountdown(matchDate as Date | null);
 
   useEffect(() => {
@@ -97,7 +98,7 @@ export default function MatchDetailPage() {
   if (loading) return <div className="text-muted">Loading...</div>;
   if (!match) return <div className="text-danger">Match not found</div>;
 
-  const matchStarted = new Date(match.date) <= new Date();
+  const matchStarted = new Date(match.lockTime ?? match.date) <= new Date();
   const isUpcoming = match.status === "UPCOMING" && !matchStarted;
 
   return (
