@@ -23,7 +23,7 @@ export async function GET(req: Request) {
       maxParticipants: true,
       inviteCode: true,
       status: true,
-      match: { select: { id: true, team1: true, team2: true, date: true, venue: true } },
+      match: { select: { id: true, team1: true, team2: true, date: true, venue: true, lockTime: true } },
       creator: { select: { username: true } },
       _count: { select: { entries: true } },
     },

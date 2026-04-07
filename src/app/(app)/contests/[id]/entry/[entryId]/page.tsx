@@ -31,7 +31,7 @@ interface EntryDetail {
   contest: {
     id: string;
     status: string;
-    match: { id: string; team1: string; team2: string; date: string; status: string };
+    match: { id: string; team1: string; team2: string; date: string; status: string; lockTime?: string | null };
   };
 }
 
@@ -62,7 +62,7 @@ export default function EntryDetailPage() {
   // Auto-refresh every 60s during live matches to show updating player points
   useEffect(() => {
     if (!entry) return;
-    const matchStarted = entry.contest.match.status !== "UPCOMING" || new Date(entry.contest.match.date) <= new Date();
+    const matchStarted = entry.contest.match.status !== "UPCOMING" || new Date(entry.contest.match.lockTime ?? entry.contest.match.date) <= new Date();
     if (!matchStarted || entry.contest.status === "COMPLETED") return;
     const interval = setInterval(() => loadEntry(), 60_000);
     return () => clearInterval(interval);
@@ -72,7 +72,7 @@ export default function EntryDetailPage() {
   if (loading) return <div className="text-muted">Loading...</div>;
   if (!entry) return <div className="text-danger">Team not found</div>;
 
-  const matchStarted = new Date(entry.contest.match.date) <= new Date();
+  const matchStarted = new Date(entry.contest.match.lockTime ?? entry.contest.match.date) <= new Date();
   const contestOpen = entry.contest.status === "OPEN";
   const canEdit = isOwner && !matchStarted && contestOpen;
 

@@ -18,6 +18,7 @@ interface Contest {
   status: string;
   match: {
     team1: string; team2: string; date: string; venue: string; status: string;
+    lockTime?: string | null;
     result?: string | null;
     scores?: Array<{ r: number; w: number; o: number; inning: string }> | null;
     toss?: string | null;
@@ -94,15 +95,13 @@ export default function ContestDetailPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // Auto-refresh every 60s during LIVE matches so users see score updates
+  // Auto-refresh every 30s so users see lock/unlock changes without manual refresh
   useEffect(() => {
-    if (!contest) return;
-    const isMatchLive = contest.match.status === "LIVE" || new Date(contest.match.date) <= new Date();
-    if (!isMatchLive || contest.status === "COMPLETED") return;
-    const interval = setInterval(() => loadContest(id), 60_000);
+    if (!contest || contest.status === "COMPLETED") return;
+    const interval = setInterval(() => loadContest(id), 30_000);
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contest?.match.status, contest?.status, id]);
+  }, [contest?.status, id]);
 
   function copyInviteCode() {
     if (!contest) return;
@@ -141,13 +140,13 @@ export default function ContestDetailPage() {
     }
   }
 
-  const matchDate = contest ? new Date(contest.match.date) : null;
+  const matchDate = contest ? new Date(contest.match.lockTime ?? contest.match.date) : null;
   const { countdown, minutesUntil } = useCountdown(matchDate);
 
   if (loading) return <div className="text-muted">Loading...</div>;
   if (!contest) return <div className="text-danger">Contest not found</div>;
 
-  const matchStarted = new Date(contest.match.date) <= new Date();
+  const matchStarted = new Date(contest.match.lockTime ?? contest.match.date) <= new Date();
   const canJoin = contest.status === "OPEN" && !isParticipant && !matchStarted;
   const canAddTeam = contest.status === "OPEN" && isParticipant && !matchStarted;
 

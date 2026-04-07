@@ -16,7 +16,7 @@ interface Contest {
   isJoined: boolean;
   creator: { username: string };
   _count: { entries: number };
-  match: { id: string; team1: string; team2: string; date: string; venue: string };
+  match: { id: string; team1: string; team2: string; date: string; venue: string; lockTime?: string | null };
 }
 
 interface MyEntry {
@@ -247,7 +247,7 @@ export default function ContestsPage() {
                               Upcoming
                             </span>
                             <div className="w-[1px] h-3 bg-success/20" />
-                            <Countdown targetDate={contest.match.date} className="text-success" />
+                            <Countdown targetDate={contest.match.lockTime ?? contest.match.date} className="text-success" />
                           </div>
                         )}
                       </div>

@@ -18,10 +18,27 @@ export async function PUT(req: Request) {
       if (newLockTime && newLockTime <= new Date()) {
         return NextResponse.json({ error: "Lock time must be in the future" }, { status: 400 });
       }
-      const match = await prisma.match.update({
-        where: { id: matchId },
-        data: { lockTime: newLockTime },
-      });
+
+      // If setting a future lockTime, flip match back to UPCOMING and re-open locked contests
+      // This handles rain delays where match already auto-flipped to LIVE
+      if (newLockTime) {
+        await prisma.match.update({
+          where: { id: matchId },
+          data: { lockTime: newLockTime, status: "UPCOMING" },
+        });
+        await prisma.contest.updateMany({
+          where: { matchId, status: "LOCKED" },
+          data: { status: "OPEN" },
+        });
+      } else {
+        // Clearing lockTime — just reset it, don't change match/contest status
+        await prisma.match.update({
+          where: { id: matchId },
+          data: { lockTime: null },
+        });
+      }
+
+      const match = await prisma.match.findUnique({ where: { id: matchId } });
       return NextResponse.json({ match });
     }
 
