@@ -44,7 +44,12 @@ export async function PUT(req: Request) {
     }
 
     return NextResponse.json({ match });
-  } catch {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    if (msg === "Unauthorized" || msg === "Forbidden") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    console.error("[admin/matches PUT]", err);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

@@ -331,8 +331,8 @@ export default function AdminPage() {
     const match = matches.find((m) => m.id === matchId);
     if (!match) return;
 
-    // Base off existing lockTime if set, otherwise scheduled date
-    const base = match.lockTime ? new Date(match.lockTime) : new Date(match.date);
+    // Always base off scheduled match date, not a previous lockTime extension
+    const base = new Date(match.date);
     const newLockTime = new Date(base.getTime() + extraMinutes * 60 * 1000);
 
     const res = await fetch("/api/admin/matches", {
