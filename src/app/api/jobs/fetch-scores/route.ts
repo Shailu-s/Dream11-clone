@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { fetchCricScore, fetchScorecard, parseScorecard, isTeamMatch, isMatchEnded, getBestAvailableKeyIndex } from "@/lib/cricket-api";
+import { fetchCricScore, fetchScorecard, parseScorecard, isTeamMatch, isMatchEnded, getBestAvailableKeyIndex, getTotalUsageToday } from "@/lib/cricket-api";
 import { calculateFantasyPoints, calculateEntryPoints } from "@/lib/scoring";
 import { syncMatchStatuses } from "@/lib/match-sync";
 
@@ -276,8 +276,8 @@ export async function GET(req: Request) {
         console.error(`[Cron] Error processing ${matchLabel}:`, errorMsg);
       }
 
-      // Log this match's cron run — compute total from in-memory usageMap (no extra DB query)
-      const currentUsageTotal = Array.from(usageMap.values()).reduce((s, v) => s + v, 0);
+      // Log this match's cron run — read from DB (source of truth, not in-memory map)
+      const currentUsageTotal = await getTotalUsageToday();
       await prisma.cronLog.create({
         data: {
           matchId: match.id,
@@ -301,7 +301,7 @@ export async function GET(req: Request) {
     }
 
     const elapsed = Date.now() - startedAt;
-    const finalUsageTotal = Array.from(usageMap.values()).reduce((s, v) => s + v, 0);
+    const finalUsageTotal = await getTotalUsageToday();
     console.log(`[Cron] Done in ${elapsed}ms. Matches processed: ${liveMatches.length}. API hits today: ${finalUsageTotal}`);
 
     return NextResponse.json({

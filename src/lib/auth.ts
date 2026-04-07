@@ -10,7 +10,7 @@ const transporter = nodemailer.createTransport({
   host: "smtp-relay.brevo.com",
   port: 587,
   auth: {
-    user: "a685f6001@smtp-brevo.com",
+    user: process.env.BREVO_SMTP_USER,
     pass: process.env.BREVO_SMTP_KEY,
   },
 });
@@ -37,8 +37,9 @@ export async function sendOTP(email: string): Promise<void> {
     expiresAt
   );
 
+  const fromEmail = process.env.ADMIN_EMAIL || "noreply@stars11.local";
   await transporter.sendMail({
-    from: '"WGF" <srajawat5868@gmail.com>',
+    from: `"WGF" <${fromEmail}>`,
     to: email,
     subject: "Your WGF OTP",
     text: `Your WGF verification code is: ${code}\n\nThis code expires in 10 minutes.`,

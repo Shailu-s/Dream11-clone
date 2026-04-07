@@ -8,6 +8,11 @@ const API_KEYS = [
   process.env.CRICKET_DATA_API_KEY,
   process.env.CRICKET_DATA_API_KEY_2,
   process.env.CRICKET_DATA_API_KEY_3,
+  process.env.CRICKET_DATA_API_KEY_4,
+  process.env.CRICKET_DATA_API_KEY_5,
+  process.env.CRICKET_DATA_API_KEY_6,
+  process.env.CRICKET_DATA_API_KEY_7,
+  process.env.CRICKET_DATA_API_KEY_8,
 ].filter(Boolean) as string[];
 
 // Each key is from a separate CricAPI account with its own 100/day limit.

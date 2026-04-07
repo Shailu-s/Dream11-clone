@@ -188,7 +188,7 @@ const SQUADS: Record<string, PlayerSeed[]> = {
     { name: "Yashasvi Jaiswal", role: "BAT", creditPrice: 10.0 },
     { name: "Shimron Hetmyer", role: "BAT", creditPrice: 8.0 },
     { name: "Dhruv Jurel", role: "WK", creditPrice: 7.5 },
-    { name: "Vaibhav Suryavanshi", role: "BAT", creditPrice: 7.0 },
+    { name: "Vaibhav Sooryavanshi", role: "BAT", creditPrice: 7.0 },
     { name: "Shubham Dubey", role: "BAT", creditPrice: 6.5 },
     { name: "Donovan Ferreira", role: "BAT", creditPrice: 7.0 },
     { name: "Riyan Parag", role: "AR", creditPrice: 8.5 },

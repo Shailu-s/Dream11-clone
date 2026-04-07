@@ -89,17 +89,22 @@ These must be set in Vercel dashboard (Settings → Environment Variables). The 
 | `DATABASE_URL` | Supabase PostgreSQL connection string |
 | `JWT_SECRET` | JWT signing secret |
 | `ADMIN_EMAIL` | Admin account email |
+| `BREVO_SMTP_USER` | Brevo SMTP username (from Brevo SMTP settings) |
 | `BREVO_SMTP_KEY` | Brevo transactional email API key |
 | `CRICKET_DATA_API_KEY` | CricAPI key 1 (primary) |
 | `CRICKET_DATA_API_KEY_2` | CricAPI key 2 (fallback) |
 | `CRICKET_DATA_API_KEY_3` | CricAPI key 3 (fallback) |
+| `CRICKET_DATA_API_KEY_4` | CricAPI key 4 (fallback) |
+| `CRICKET_DATA_API_KEY_5` | CricAPI key 5 (fallback) |
+| `CRICKET_DATA_API_KEY_6` | CricAPI key 6 (fallback) |
+| `CRICKET_DATA_API_KEY_7` | CricAPI key 7 (fallback) |
+| `CRICKET_DATA_API_KEY_8` | CricAPI key 8 (fallback) |
 
 ### CricAPI Key Status
 - Each key: 100 requests/day, resets at midnight UTC (~5:30 AM IST)
 - Each "Fetch from API" click in admin = 2 API calls (match lookup + scorecard)
 - Keys are tried in order (1 → 2 → 3). If one is rate-limited, next is tried after 2s delay
 - Do NOT use auto-sync — it burns the daily limit fast
-- Keys: `077d5a2f` (primary), `8ccab56b` (key 2), `20ea6e4a` (key 3)
 
 ---
 

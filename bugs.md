@@ -193,3 +193,65 @@
 **Files:** multiple
 **Issue:** `npm run lint` currently fails across scripts, admin routes, API utilities, and React components, which weakens regression protection for launch prep.
 **Fix:** Clean up the existing lint backlog and keep the repo green before further production hardening.
+
+---
+
+### Open-Source Readiness (Pre-Public Checklist)
+
+---
+
+#### BUG-022: Hardcoded SMTP username in source code [HIGH]
+**Status:** FIXED
+**File:** `src/lib/auth.ts:13`
+**Issue:** `a685f6001@smtp-brevo.com` hardcoded — exposes real Brevo account identity to anyone reading the public repo.
+**Fix:** Moved to `BREVO_SMTP_USER` env var.
+
+---
+
+#### BUG-023: Hardcoded personal Gmail as OTP sender [HIGH]
+**Status:** FIXED
+**File:** `src/lib/auth.ts:41`
+**Issue:** `srajawat5868@gmail.com` hardcoded as "From" address in OTP email — personal email exposed publicly.
+**Fix:** Use `ADMIN_EMAIL` env var (already defined).
+
+---
+
+#### BUG-024: CricAPI key prefixes printed in README [MEDIUM]
+**Status:** FIXED
+**File:** `README.md:102`
+**Issue:** Partial key values (`077d5a2f`, `8ccab56b`, `20ea6e4a`) visible in docs — makes brute-forcing the full key easier.
+**Fix:** Removed key values from README.
+
+---
+
+#### BUG-025: No .env.example for contributors [LOW]
+**Status:** FIXED
+**File:** `.env.example` (missing)
+**Issue:** Contributors have no template to know which env vars are needed to run the project.
+**Fix:** Created `.env.example` with all keys and placeholder values.
+
+---
+
+#### BUG-026: No rate limiting on OTP send endpoint [MEDIUM]
+**Status:** FIXED
+**File:** `src/app/api/auth/send-otp/route.ts`
+**Issue:** Endpoint can be called in a loop to exhaust Brevo email quota or brute-force OTPs.
+**Fix:** In-memory rate limit — max 5 OTP requests per email per 10 minutes.
+
+---
+
+#### BUG-027: No HTTP security headers [LOW]
+**Status:** FIXED
+**File:** `next.config.ts`
+**Issue:** Missing `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` headers.
+**Fix:** Added security headers in `next.config.ts`.
+
+---
+
+#### BUG-028: Real secrets must be rotated before going public [CRITICAL — manual action]
+**Status:** OPEN (manual)
+**Files:** `.env`
+**Issue:** Real Brevo SMTP key, CricAPI keys, and JWT secret are in `.env`. Even though `.env` is gitignored, rotate all secrets before making repo public in case they ever slipped into git history.
+- Brevo: regenerate SMTP key at app.brevo.com
+- CricAPI: regenerate keys at cricapi.com
+- JWT_SECRET: replace with output of `openssl rand -hex 64`
