@@ -36,6 +36,7 @@ interface MatchRow {
   date: string;
   venue: string;
   status: "UPCOMING" | "LIVE" | "COMPLETED";
+  lockTime: string | null;
   playingXIConfirmed: boolean;
   _count: { contests: number };
 }
@@ -320,6 +321,57 @@ export default function AdminPage() {
     }
 
     setMessage(`Match moved to ${status}`);
+    await loadAdminData();
+  }
+
+  async function handleExtendLock(matchId: string, extraMinutes: number) {
+    setSubmittingId(matchId);
+    setMessage("");
+
+    const match = matches.find((m) => m.id === matchId);
+    if (!match) return;
+
+    // Base off existing lockTime if set, otherwise scheduled date
+    const base = match.lockTime ? new Date(match.lockTime) : new Date(match.date);
+    const newLockTime = new Date(base.getTime() + extraMinutes * 60 * 1000);
+
+    const res = await fetch("/api/admin/matches", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchId, lockTime: newLockTime.toISOString() }),
+    });
+
+    const data = await res.json();
+    setSubmittingId(null);
+
+    if (!res.ok) {
+      setMessage(data.error || "Failed to extend lock time");
+      return;
+    }
+
+    setMessage(`Lock time extended by ${extraMinutes} min for ${match.team1} vs ${match.team2}`);
+    await loadAdminData();
+  }
+
+  async function handleClearLock(matchId: string) {
+    setSubmittingId(matchId);
+    setMessage("");
+
+    const res = await fetch("/api/admin/matches", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchId, lockTime: null }),
+    });
+
+    const data = await res.json();
+    setSubmittingId(null);
+
+    if (!res.ok) {
+      setMessage(data.error || "Failed to clear lock time");
+      return;
+    }
+
+    setMessage("Lock time reset to scheduled match time");
     await loadAdminData();
   }
 
@@ -1058,6 +1110,35 @@ export default function AdminPage() {
                       </button>
                     ))}
                   </div>
+                  {match.status === "UPCOMING" && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-muted">Delay lock:</span>
+                      {[30, 60, 90].map((mins) => (
+                        <button
+                          key={mins}
+                          onClick={() => handleExtendLock(match.id, mins)}
+                          disabled={submittingId === match.id}
+                          className="rounded-lg px-2 py-1 text-xs font-medium bg-warning/10 text-warning hover:bg-warning/20 border border-warning/30 transition-colors disabled:opacity-30"
+                        >
+                          +{mins}m
+                        </button>
+                      ))}
+                      {match.lockTime && (
+                        <>
+                          <span className="text-xs text-warning">
+                            Locked at {new Date(match.lockTime).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                          <button
+                            onClick={() => handleClearLock(match.id)}
+                            disabled={submittingId === match.id}
+                            className="rounded-lg px-2 py-1 text-xs font-medium bg-danger/10 text-danger hover:bg-danger/20 border border-danger/30 transition-colors disabled:opacity-30"
+                          >
+                            Reset
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

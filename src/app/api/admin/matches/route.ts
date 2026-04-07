@@ -5,10 +5,29 @@ import { prisma } from "@/lib/prisma";
 export async function PUT(req: Request) {
   try {
     await requireAdmin();
-    const { matchId, status } = await req.json();
+    const { matchId, status, lockTime } = await req.json();
 
-    if (!matchId || !["UPCOMING", "LIVE", "COMPLETED"].includes(status)) {
+    // Must provide either status or lockTime
+    if (!matchId || (!status && lockTime === undefined)) {
       return NextResponse.json({ error: "Invalid data" }, { status: 400 });
+    }
+
+    // Handle lock time extension
+    if (lockTime !== undefined) {
+      const newLockTime = lockTime ? new Date(lockTime) : null;
+      if (newLockTime && newLockTime <= new Date()) {
+        return NextResponse.json({ error: "Lock time must be in the future" }, { status: 400 });
+      }
+      const match = await prisma.match.update({
+        where: { id: matchId },
+        data: { lockTime: newLockTime },
+      });
+      return NextResponse.json({ match });
+    }
+
+    // Handle status change
+    if (!["UPCOMING", "LIVE", "COMPLETED"].includes(status)) {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
     const match = await prisma.match.update({

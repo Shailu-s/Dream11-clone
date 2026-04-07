@@ -14,11 +14,21 @@ export async function syncMatchStatuses() {
     data: { status: "COMPLETED" },
   });
 
-  // Step 2: Flip UPCOMING → LIVE for matches whose start time has passed (within 4-hour window)
-  const goingLive = await prisma.match.updateMany({
-    where: { status: "UPCOMING", date: { lt: now, gte: matchDurationAgo } },
-    data: { status: "LIVE" },
+  // Step 2: Flip UPCOMING → LIVE for matches whose lock time has passed (within 4-hour window)
+  // Uses lockTime if set by admin (rain delay), otherwise falls back to scheduled match date
+  const upcomingMatches = await prisma.match.findMany({
+    where: { status: "UPCOMING", date: { gte: matchDurationAgo } },
+    select: { id: true, date: true, lockTime: true },
   });
+  const matchIdsToGoLive = upcomingMatches
+    .filter((m) => (m.lockTime ?? m.date) <= now)
+    .map((m) => m.id);
+  const goingLive = matchIdsToGoLive.length > 0
+    ? await prisma.match.updateMany({
+        where: { id: { in: matchIdsToGoLive } },
+        data: { status: "LIVE" },
+      })
+    : { count: 0 };
 
   if (completed.count > 0 || goingLive.count > 0) {
     console.log(`[MatchSync] ${completed.count} marked COMPLETED, ${goingLive.count} marked LIVE`);

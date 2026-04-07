@@ -17,7 +17,7 @@ export async function GET(
       user: { select: { username: true } },
       contest: {
         include: {
-          match: { select: { id: true, team1: true, team2: true, date: true, status: true } },
+          match: { select: { id: true, team1: true, team2: true, date: true, status: true, lockTime: true } },
         },
       },
     },
@@ -29,7 +29,8 @@ export async function GET(
 
   const isOwner = user?.id === entry.userId;
   const matchStarted =
-    entry.contest.match.status !== "UPCOMING" || entry.contest.match.date <= new Date();
+    entry.contest.match.status !== "UPCOMING" ||
+    (entry.contest.match.lockTime ?? entry.contest.match.date) <= new Date();
 
   // Don't reveal team composition to other users before match starts
   if (!isOwner && !matchStarted) {
@@ -95,7 +96,7 @@ export async function PUT(
       return NextResponse.json({ error: "Contest is locked" }, { status: 400 });
     }
 
-    if (entry.contest.match.date <= new Date()) {
+    if ((entry.contest.match.lockTime ?? entry.contest.match.date) <= new Date()) {
       return NextResponse.json({ error: "Match has already started" }, { status: 400 });
     }
 

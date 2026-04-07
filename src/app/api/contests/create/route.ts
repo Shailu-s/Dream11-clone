@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     if (!match || match.status !== "UPCOMING") {
       return NextResponse.json({ error: "Match not available" }, { status: 400 });
     }
-    if (match.date <= new Date()) {
+    if ((match.lockTime ?? match.date) <= new Date()) {
       return NextResponse.json({ error: "Match has already started" }, { status: 400 });
     }
 

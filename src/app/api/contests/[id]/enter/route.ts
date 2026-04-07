@@ -49,7 +49,7 @@ export async function POST(
             throw new ContestEntryValidationError("Contest not available");
           }
 
-          if (contest.match.date <= new Date()) {
+          if ((contest.match.lockTime ?? contest.match.date) <= new Date()) {
             throw new ContestEntryValidationError("Match has already started");
           }
 

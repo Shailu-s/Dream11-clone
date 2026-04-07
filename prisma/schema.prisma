@@ -106,6 +106,7 @@ model Match {
   result               String?
   scores               Json?
   toss                 String?
+  lockTime             DateTime?
   createdAt DateTime    @default(now())
 
   contests         Contest[]
